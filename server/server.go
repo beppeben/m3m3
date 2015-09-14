@@ -1,11 +1,12 @@
 package server
 
 import (
-	"database/sql"
+	//"database/sql"
 	"log"
 	"net/http"
 	"time"
-
+	"fmt"
+	"github.com/beppeben/m3m3/db"
 	"github.com/gorilla/context"
 	"github.com/julienschmidt/httprouter"
 	"github.com/justinas/alice"
@@ -15,13 +16,13 @@ func init() {
 	// db := sql.Open("postgres", "...")
 	//appC := appContext{nil}
 	commonHandlers := alice.New(context.ClearHandler, loggingHandler, recoverHandler)
+	authHandlers := commonHandlers.Append(authHandler)
 	router := NewRouter()
-	//router.Get("/admin", commonHandlers.Append(appC.authHandler).ThenFunc(appC.adminHandler))
-	//router.Get("/about", commonHandlers.ThenFunc(aboutHandler))
-	router.Get("/", commonHandlers.ThenFunc(indexHandler))
 	router.Get("/images", commonHandlers.ThenFunc(getImageUrls))
-	//router.Get("/teas/:id", commonHandlers.ThenFunc(appC.teaHandler))
-
+	router.Post("/register", commonHandlers.ThenFunc(register))
+	router.Post("/login", commonHandlers.ThenFunc(login))
+	router.Get("/confirm", commonHandlers.ThenFunc(confirmEmail))
+	router.Get("/logout", authHandlers.ThenFunc(logout))
 	log.Println("[SERV] Server ready to accept requests")
 	http.ListenAndServe(":8080", router)
 }
@@ -33,7 +34,7 @@ func recoverHandler(next http.Handler) http.Handler {
 		defer func() {
 			if err := recover(); err != nil {
 				log.Printf("[SERV] Server Error: %+v", err)
-				http.Error(w, http.StatusText(500), 500)
+				http.Error(w, http.StatusText(500) + ": " + fmt.Sprintf("%v", err), 500)
 			}
 		}()
 
@@ -56,8 +57,31 @@ func loggingHandler(next http.Handler) http.Handler {
 	return http.HandlerFunc(fn)
 }
 
-type appContext struct {
-	db *sql.DB
+//type appContext struct {
+//	db *sql.DB
+//}
+
+func authHandler(next http.Handler) http.Handler {
+	fn := func(w http.ResponseWriter, r *http.Request) {
+		cookie, err := r.Cookie("token")
+		if err != nil {
+			log.Printf("[SERV] Token cookie not sent: %s", err)
+			http.Error(w, http.StatusText(401), 401)
+			return
+		}
+		token := cookie.Value
+		name, err := db.FindUserNameByToken(token)
+		if err != nil {
+			log.Printf("[SERV] Token not in database: %s", err)
+			http.Error(w, http.StatusText(401), 401)
+			return
+		}
+		context.Set(r, "user", name)
+		context.Set(r, "token", token)
+		next.ServeHTTP(w, r)
+	}
+
+	return http.HandlerFunc(fn)
 }
 
 /*
@@ -93,6 +117,10 @@ type router struct {
 
 func (r *router) Get(path string, handler http.Handler) {
 	r.GET(path, wrapHandler(handler))
+}
+
+func (r *router) Post(path string, handler http.Handler) {
+	r.POST(path, wrapHandler(handler))
 }
 
 func NewRouter() *router {

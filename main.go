@@ -1,7 +1,7 @@
 package main
 
 import (
-	server "github.com/beppeben/m3m3/server"
+	"github.com/beppeben/m3m3/server"
 )
 
 
