@@ -3,17 +3,26 @@ package server
 import (
 	"fmt"
 	"net/http"
-	"encoding/json"
 	"github.com/beppeben/m3m3/crawler"
 	"github.com/beppeben/m3m3/db"
 	. "github.com/beppeben/m3m3/utils"
 	"log"
 	"time"
 	"github.com/gorilla/context"
+	//"compress/gzip"
 )
 
+func getItems (w http.ResponseWriter, r *http.Request) {
+	//json.NewEncoder(w).Encode(crawler.Img_urls)
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Content-Encoding", "gzip")
+	//fmt.Fprintf(w, crawler.GetItems())
+	w.Write(crawler.GetZippedItems())
+	
+}
+
 func getImageUrls (w http.ResponseWriter, r *http.Request) {
-	json.NewEncoder(w).Encode(crawler.Img_urls)
+	
 }
 
 func login (w http.ResponseWriter, r *http.Request) {

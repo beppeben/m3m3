@@ -1,7 +1,6 @@
 package server
 
 import (
-	//"database/sql"
 	"log"
 	"net/http"
 	"time"
@@ -17,8 +16,9 @@ func init() {
 	//appC := appContext{nil}
 	commonHandlers := alice.New(context.ClearHandler, loggingHandler, recoverHandler)
 	authHandlers := commonHandlers.Append(authHandler)
+	
 	router := NewRouter()
-	router.Get("/images", commonHandlers.ThenFunc(getImageUrls))
+	router.Get("/items", commonHandlers.ThenFunc(getItems))
 	router.Post("/register", commonHandlers.ThenFunc(register))
 	router.Post("/login", commonHandlers.ThenFunc(login))
 	router.Get("/confirm", commonHandlers.ThenFunc(confirmEmail))
@@ -40,9 +40,9 @@ func recoverHandler(next http.Handler) http.Handler {
 
 		next.ServeHTTP(w, r)
 	}
-
 	return http.HandlerFunc(fn)
 }
+
 
 func loggingHandler(next http.Handler) http.Handler {
 	fn := func(w http.ResponseWriter, r *http.Request) {
@@ -53,7 +53,6 @@ func loggingHandler(next http.Handler) http.Handler {
 		t2 := time.Now()
 		log.Printf("[SERV] %s request to %q: time %v\n", r.Method, r.URL.String(), t2.Sub(t1))
 	}
-
 	return http.HandlerFunc(fn)
 }
 

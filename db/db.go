@@ -31,7 +31,7 @@ func init() {
 
 func Connect_Database() {
 	var err error
-	db, err = sql.Open("mysql", GetUserDB()+":"+GetPassDB()+"@/m3m3")
+	db, err = sql.Open("mysql", GetUserDB()+":"+GetPassDB()+"@/m3m3?parseTime=true")
 	if err != nil {
 		panic(err.Error())
 	}

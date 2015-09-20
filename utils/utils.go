@@ -77,6 +77,7 @@ func ReadLines(path string) ([]string, error) {
 
 func GetFileSize(url string, client *http.Client) int64 {
 	//resp, err := http.Head(url)
+	//log.Print("getting img size")
 	resp, err := client.Head(url)	
 	if err != nil {
 		//log.Printf("URL %s is not reachable", url)

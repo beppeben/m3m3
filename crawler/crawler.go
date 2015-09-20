@@ -8,17 +8,19 @@ import (
 )
 
 var (
-	sources   []Source
-	Img_urls  []string
-	client    *http.Client
-	tr        *http.Transport
-	wait_time time.Duration = 1
+	sources   	[]Source
+	//Img_urls  []string
+	manager		*IManager
+	client    	*http.Client
+	tr        	*http.Transport
+	wait_time 	time.Duration = 1
 )
 
 func init() {
 	log.Println("[CRAW] Crawler started, updating sources...")
 	tr = &http.Transport{}
 	client = &http.Client{Transport: tr}
+	manager = NewManager()
 	go updateSources()
 }
 
@@ -34,6 +36,7 @@ func getSourcesFromFile() {
 	}
 }
 
+/*
 func getShuffledUrls() []string {
 	for i, _ := range sources {
 		sources[i].resetIterator()
@@ -56,24 +59,34 @@ func getShuffledUrls() []string {
 	}
 	return result
 }
+*/
 
 func Start_Crawler() {}
 
+func GetItems() string {
+	return manager.GetJson()
+}
+
+func GetZippedItems() []byte {
+	return manager.GetZippedJson()
+}
+
 func updateSources() {
 	getSourcesFromFile()
-	done := make(chan bool)
+	c := make(chan int)
 	//update all sources in parallel
 	for i, _ := range sources {
-		go sources[i].update(done)
+		go sources[i].update(c)
 	}
+	var total int
 	//wait for all the routines to return
 	for i := 0; i < len(sources); i++ {
-		<-done		
+		total += <-c		
 	}
 	//this is to avoid annoying logs about unsolicited requests to idle conns
 	tr.CloseIdleConnections()
-	Img_urls = getShuffledUrls()
-	log.Printf("[CRAW] Sources updated with %d image urls", len(Img_urls))
+	manager.RefreshJson()
+	//log.Printf("[CRAW] Sources updated with %d items", total)
 	time.Sleep(time.Minute * wait_time)
 	updateSources()
 }
