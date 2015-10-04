@@ -2,7 +2,7 @@ package crawler
 
 import (
 	//"fmt"
-	"github.com/beppeben/m3m3/utils"
+	. "github.com/beppeben/m3m3/utils"
 	"io/ioutil"
 	"log"
 	//"net/http"
@@ -11,12 +11,12 @@ import (
 )
 
 var (
-	max_item_source 	int   = 10
-	max_item_crawl 	int	  = 20
+	max_item_source 	int   = 5
+	max_item_crawl 	int	  = 5
 	min_img_size   	int64 = 35 * 1000
 	max_img_miss 	int   = 10
 
-	img_regx   *regexp.Regexp = regexp.MustCompile("http([^<>\"]+?)\\.(jpg|png|jpeg)(&quot;|\")")
+	img_regx   *regexp.Regexp = regexp.MustCompile("http([^<>\"]+?)\\.(jpg|jpeg)(&quot;|\")")
 	items_regx *regexp.Regexp = regexp.MustCompile("<item>([\\S\\s]+?)</item>")
 	title_regx *regexp.Regexp = regexp.MustCompile("<title>(<!\\[CDATA\\[)?([\\S\\s]+?)(\\]\\]>)?</title>")
 )
@@ -25,35 +25,19 @@ var (
 
 type Source struct {
 	url      	string
-	//img_urls []string
-	//items  	[]*Item
-	//index 	int
 }
 
-
-
-//func (source *Source) resetIterator() { source.index = 0 }
-
-/*
-func (source *Source) nextItem() (*Item, error) {
-	if source.index >= len(source.items) {
-		return nil, fmt.Errorf("No next image in source %s", source.url)
-	}
-	item := source.items[source.index]
-	source.index++
-	return item, nil
-}
-*/
 
 func (source *Source) update(num chan int) {
-	//resp, err := http.Get(source.url)
+	var managed, updated, misses int
+	defer func (){num <- updated}()
+	//log.Printf("getting %s", source.url)
 	resp, err := client.Get(source.url)
 	if err != nil {
 		log.Printf("URL %s is not reachable", source.url)
-		num <- 0
 		return
 	}
-	//log.Printf("[CRAW] Updating source %s", source.url)
+	
 	defer resp.Body.Close()
 	body, err := ioutil.ReadAll(resp.Body)
 	xml := string(body)
@@ -63,8 +47,7 @@ func (source *Source) update(num chan int) {
 
 	var title string
 	var url_matcher, title_matcher [][]string
-	var managed, updated int
-	var misses int
+	
 	outer:
 	for count, xml_item := range xml_items {
 		if managed >= max_item_source || count > max_item_crawl {
@@ -85,6 +68,8 @@ func (source *Source) update(num chan int) {
 		//candidate images
 		img_urls := make([]string, 0)
 		
+		
+		
 		//skip item if already managed
 		for i := 0; i < l; i++ {
 			img_urls = append(img_urls, "http" + url_matcher[i][1] + "." + url_matcher[i][2])
@@ -96,7 +81,7 @@ func (source *Source) update(num chan int) {
 		
 		//retain item, if a sufficently large image is found
 		for i := 0; i < l; i++ {
-			if utils.GetFileSize(img_urls[i], client) > min_img_size {
+			if GetFileSize(img_urls[i], client) > min_img_size {
 				manager.Insert(&Item{Title: title, Img_url: img_urls[i]})
 				managed++
 				updated++
@@ -110,7 +95,5 @@ func (source *Source) update(num chan int) {
 			}							
 		}
 	}
-	//log.Printf("[CRAW] Got %d images sizes", test)
-	//log.Printf("[CRAW] Got %d images", len(source.img_urls))
-	num <- updated
+	
 }

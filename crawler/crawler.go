@@ -1,7 +1,7 @@
 package crawler
 
 import (
-	"github.com/beppeben/m3m3/utils"
+	. "github.com/beppeben/m3m3/utils"
 	"log"
 	"net/http"
 	"time"
@@ -9,23 +9,46 @@ import (
 
 var (
 	sources   	[]Source
-	//Img_urls  []string
 	manager		*IManager
 	client    	*http.Client
 	tr        	*http.Transport
 	wait_time 	time.Duration = 1
+	c 			chan int
 )
+
+func Start_Crawler() {}
 
 func init() {
 	log.Println("[CRAW] Crawler started, updating sources...")
 	tr = &http.Transport{}
 	client = &http.Client{Transport: tr}
 	manager = NewManager()
+	c = make(chan int)
 	go updateSources()
 }
 
+func GetItems() string {
+	return manager.GetJson()
+}
+
+func GetZippedItems() []byte {
+	return manager.GetZippedJson()
+}
+
+func GetItemByUrl (url string) (*Item, bool) {
+	return manager.GetItemByUrl(url)
+}
+
+func NotifyItemId (url string, id int64) {
+	manager.NotifyItemId (url, id)
+}
+
+func NotifyComment (comment *Comment) {
+	manager.NotifyComment (comment)
+}
+
 func getSourcesFromFile() {
-	rss_urls, err := utils.ReadLines("./config/rss.conf")
+	rss_urls, err := ReadLines("./config/rss.conf")
 	if err != nil {
 		log.Printf("[CRAW] Couldn't read rss list: %s", err)
 		return
@@ -36,44 +59,9 @@ func getSourcesFromFile() {
 	}
 }
 
-/*
-func getShuffledUrls() []string {
-	for i, _ := range sources {
-		sources[i].resetIterator()
-	}
-	result := make([]string, 0)
-	exit := false
-	for {
-		if exit {
-			break
-		}
-		exit = true
-		for i, _ := range sources {
-			img, err := sources[i].nextImage()
-			if err == nil {
-				//Img_urls = append(Img_urls, img)
-				result = append(result, img)
-				exit = false
-			}
-		}
-	}
-	return result
-}
-*/
-
-func Start_Crawler() {}
-
-func GetItems() string {
-	return manager.GetJson()
-}
-
-func GetZippedItems() []byte {
-	return manager.GetZippedJson()
-}
-
 func updateSources() {
 	getSourcesFromFile()
-	c := make(chan int)
+	
 	//update all sources in parallel
 	for i, _ := range sources {
 		go sources[i].update(c)

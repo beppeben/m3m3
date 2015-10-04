@@ -21,6 +21,10 @@ var (
 	stInsertAccessToken		*sql.Stmt
 	stDeleteAccessToken		*sql.Stmt
 	stFindAccessToken		*sql.Stmt
+	stFindItemByUrl			*sql.Stmt
+	stFindItemById			*sql.Stmt
+	stInsertItem				*sql.Stmt
+	stInsertComment			*sql.Stmt
 )
 
 
@@ -50,6 +54,10 @@ func Connect_Database() {
 		err = createTables()	
 		if err != nil {
 			return			
+		}
+		err = DeleteAllImages()
+		if err != nil {
+			log.Printf("[DB] Problem deleting images: %v", err)			
 		}
 		log.Println("[DB] Tables created successfully")
 	}
@@ -95,6 +103,22 @@ func InitializeStatements() {
     if err != nil {
         panic(err.Error()) 
     }
+	stFindItemByUrl, err = db.Prepare("SELECT * FROM items WHERE imgurl = ?")
+    if err != nil {
+        panic(err.Error()) 
+    }
+	stFindItemById, err = db.Prepare("SELECT * FROM items WHERE id = ?")
+    if err != nil {
+        panic(err.Error()) 
+    }	
+	stInsertItem, err = db.Prepare("INSERT INTO items VALUES(?,?,?)")
+	if err != nil {
+        panic(err.Error()) 
+    }
+	stInsertComment, err = db.Prepare("INSERT INTO comments VALUES(?,?,?,?,?,?)")
+	if err != nil {
+        panic(err.Error()) 
+    }
 }
 /*
 func InsertUserToken(user *User, tempToken string, t time.Time) error{
@@ -110,7 +134,18 @@ func InsertUserToken(user *User, tempToken string, t time.Time) error{
 }
 */
 
-func InsertTempToken(user *User, tempToken string, t time.Time) error {
+func InsertComment (comment *Comment) error {
+	result, err := stInsertComment.Exec(nil, comment.Item_id, comment.Time, comment.Text, comment.Author, comment.Likes)
+	if err == nil {
+		id, err := result.LastInsertId()
+		if err == nil {
+			comment.Id = id
+		}
+	}
+	return err
+}
+
+func InsertTempToken (user *User, tempToken string, t time.Time) error {
 	_, err := stInsertTempToken.Exec(tempToken, user.Name, user.Email, user.Pass, t)
 	return err
 }
@@ -118,6 +153,15 @@ func InsertTempToken(user *User, tempToken string, t time.Time) error {
 func InsertAccessToken (tempToken string, name string, t time.Time) error {
 	_, err := stInsertAccessToken.Exec(tempToken, name, t)
 	return err
+}
+
+func InsertItem (img_url string, title string) (int64, error) {
+	result, err := stInsertItem.Exec(nil, img_url, title)
+	if err != nil {
+		return -1, err
+	} else {
+		return result.LastInsertId()
+	}
 }
 
 func DeleteAccessToken (token string) error {
@@ -173,7 +217,8 @@ func Transact(db *sql.DB, txFunc func(*sql.Tx) error) (err error) {
 
 func FindUserNameByToken(token string) (string, error) {
 	var name string
-	err := stFindAccessToken.QueryRow(token).Scan(&token, &name)
+	var t time.Time
+	err := stFindAccessToken.QueryRow(token).Scan(&token, &name, &t)
 	return name, err
 }
 
@@ -187,13 +232,35 @@ func FindUserByName(name string) (*User, error) {
 	}	
 }
 
-func FindUserByEmail(email string) (User, error) {
+func FindUserByEmail(email string) (*User, error) {
 	var pass, name string
 	err := stFindUserByEmail.QueryRow(email).Scan(&name, &email, &pass)
 	if (err != nil) {
-		return User{}, err
+		return &User{}, err
 	} else {
-		return User{Name: name, Pass: pass, Email: email}, nil
+		return &User{Name: name, Pass: pass, Email: email}, nil
+	}	
+}
+
+func FindItemByUrl(img_url string) (*Item, error) {
+	var title string
+	var id int64
+	err := stFindItemByUrl.QueryRow(img_url).Scan(&id, &img_url, &title)
+	if (err != nil) {
+		return &Item{}, err
+	} else {
+		return &Item{Id: id, Img_url: img_url, Title: title}, nil
+	}	
+}
+
+func FindItemById(id int64) (*Item, error) {
+	var title string
+	var img_url string
+	err := stFindItemById.QueryRow(id).Scan(&id, &img_url, &title)
+	if (err != nil) {
+		return &Item{}, err
+	} else {
+		return &Item{Id: id, Img_url: img_url, Title: title}, nil
 	}	
 }
 

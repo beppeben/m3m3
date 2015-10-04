@@ -9,20 +9,80 @@ import (
 	"log"
 	"time"
 	"github.com/gorilla/context"
+	"strconv"
 	//"compress/gzip"
 )
 
 func getItems (w http.ResponseWriter, r *http.Request) {
-	//json.NewEncoder(w).Encode(crawler.Img_urls)
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Content-Encoding", "gzip")
-	//fmt.Fprintf(w, crawler.GetItems())
 	w.Write(crawler.GetZippedItems())
 	
 }
 
-func getImageUrls (w http.ResponseWriter, r *http.Request) {
+func postComment (w http.ResponseWriter, r *http.Request) {
+	username := context.Get(r, "user").(string)
+	text := r.PostFormValue("comment")
+	img_url := r.PostFormValue("img_url")
+	item_id := r.PostFormValue("item_id")
+	log.Printf("[SERV] Posting comment user: %s, url: %s, id: %s", username, img_url, item_id)
+	if text == "" || (img_url == "" && item_id == "") {
+		fmt.Fprintf(w, "ERROR_FORMAT")
+		return
+	} 
+	var item *Item
+	var err error
+	var id int64
+	if item_id != "" {
+		log.Println("id not null")
+		id, err = strconv.ParseInt(item_id, 10, 64)
+		if err != nil {
+			fmt.Fprintf(w, "ERROR_BAD_ID")
+			return
+		}
+		item, err = db.FindItemById(id)
+		if err != nil {
+			fmt.Fprintf(w, "ERROR_NOITEM")
+			return
+		}
+	} else if img_url != "" {
+		log.Println("url not null")
+		item, err = db.FindItemByUrl(img_url)
+		if err != nil {
+			log.Println("item not in db")
+			//item does not exist in the db
+			var ok bool
+			item, ok = crawler.GetItemByUrl (img_url)
+			//avoid comments to unmanaged items, unless they're done by id
+			if !ok {				
+				fmt.Fprintf(w, "ERROR_UNMANAGED")
+				return
+			}
+			//create the item in the db
+			id, err = db.InsertItem(img_url, item.Title)	
+			if err != nil {
+				fmt.Fprintf(w, "ERROR_DB")
+				log.Printf("[SERV] Database error: %s", err)
+				return
+			}
+			//notify the item manager about the new item id
+			crawler.NotifyItemId (img_url, id)
+		} else {
+			log.Println("item in db")
+		}
+		go SaveImageIfNeeded(item)
+	} 
 	
+	comment := &Comment{Item_id: item.Id, Time: time.Now(), Text: text, Author: username}
+	err = db.InsertComment (comment)
+	if err != nil {
+		fmt.Fprintf(w, "ERROR_DB")
+		log.Printf("[SERV] Database error: %s", err)
+		return
+	}
+	crawler.NotifyComment(comment)
+	fmt.Fprintf(w, "OK")
+
 }
 
 func login (w http.ResponseWriter, r *http.Request) {

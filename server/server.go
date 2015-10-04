@@ -12,17 +12,16 @@ import (
 )
 
 func init() {
-	// db := sql.Open("postgres", "...")
-	//appC := appContext{nil}
 	commonHandlers := alice.New(context.ClearHandler, loggingHandler, recoverHandler)
 	authHandlers := commonHandlers.Append(authHandler)
 	
 	router := NewRouter()
-	router.Get("/items", commonHandlers.ThenFunc(getItems))
-	router.Post("/register", commonHandlers.ThenFunc(register))
-	router.Post("/login", commonHandlers.ThenFunc(login))
-	router.Get("/confirm", commonHandlers.ThenFunc(confirmEmail))
-	router.Get("/logout", authHandlers.ThenFunc(logout))
+	router.Get("/services/items", commonHandlers.ThenFunc(getItems))
+	router.Post("/services/register", commonHandlers.ThenFunc(register))
+	router.Post("/services/login", commonHandlers.ThenFunc(login))
+	router.Get("/services/confirm", commonHandlers.ThenFunc(confirmEmail))
+	router.Get("/services/logout", authHandlers.ThenFunc(logout))
+	router.Post("/services/comment", authHandlers.ThenFunc(postComment))
 	log.Println("[SERV] Server ready to accept requests")
 	http.ListenAndServe(":8080", router)
 }
@@ -56,9 +55,6 @@ func loggingHandler(next http.Handler) http.Handler {
 	return http.HandlerFunc(fn)
 }
 
-//type appContext struct {
-//	db *sql.DB
-//}
 
 func authHandler(next http.Handler) http.Handler {
 	fn := func(w http.ResponseWriter, r *http.Request) {
@@ -83,32 +79,6 @@ func authHandler(next http.Handler) http.Handler {
 	return http.HandlerFunc(fn)
 }
 
-/*
-func (c *appContext) authHandler(next http.Handler) http.Handler {
-	fn := func(w http.ResponseWriter, r *http.Request) {
-		authToken := r.Header.Get("Authorization")
-		user, err := map[string]interface{}{}, errors.New("test")
-		// user, err := getUser(c.db, authToken)
-		log.Println(authToken)
-
-		if err != nil {
-			http.Error(w, http.StatusText(401), 401)
-			return
-		}
-
-		context.Set(r, "user", user)
-		next.ServeHTTP(w, r)
-	}
-
-	return http.HandlerFunc(fn)
-}
-
-func (c *appContext) adminHandler(w http.ResponseWriter, r *http.Request) {
-	user := context.Get(r, "user")
-	// Maybe other operations on the database
-	json.NewEncoder(w).Encode(user)
-}
-*/
 
 type router struct {
 	*httprouter.Router

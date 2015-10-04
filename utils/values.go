@@ -6,7 +6,8 @@ import (
 )
 
 var (
-	def_DB_RESET string = "no"
+	def_DB_RESET		string = "no"
+	def_IMG_DIR 		string = "/var/www/m3m3/images/"
 )
 
 func init() {
@@ -14,12 +15,14 @@ func init() {
 	viper.SetConfigName("config")
 	viper.SetConfigType("toml")
 	viper.AddConfigPath("./config/")
+	
+	viper.SetDefault("DB_RESET", def_DB_RESET)
+	viper.SetDefault("IMG_DIR", def_IMG_DIR)
 
-	err := viper.ReadInConfig() // Find and read the config file
+	err := viper.ReadInConfig() 
 
-	if err != nil { // Handle errors reading the config file
-		log.Printf("[OMG] Cannot read config file : %s", err)
-		viper.SetDefault("DB_RESET", def_DB_RESET)
+	if err != nil { 
+		log.Printf("[OMG] Cannot read config file : %s", err)		
 	}
 }
 
@@ -45,6 +48,10 @@ func GetUserDB() string {
 
 func GetPassDB() string {
 	return viper.GetString("DB_PASS")
+}
+
+func GetImgDir() string {
+	return viper.GetString("IMG_DIR")
 }
 
 func ResetDB() bool {

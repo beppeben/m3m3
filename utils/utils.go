@@ -2,7 +2,7 @@ package utils
 
 import (
 	"bufio"
-	//"log"
+	"log"
 	"net/http"
 	"os"
 	"regexp"
@@ -10,11 +10,31 @@ import (
 	"math/rand"
 	"encoding/hex"
 	"net/smtp"
+	"io"
+	"strconv"
+	"time"
 )
 
 var (
 	emailVal		*regexp.Regexp
 )
+
+const letterBytes = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+
+type User struct {
+	Name 	string
+	Pass 	string
+	Email 	string
+}
+
+type Comment struct {
+	Id			int64		`json:"id,omitempty"`
+	Item_id		int64		`json:"-"`
+	Text			string		`json:"text,omitempty"`
+	Author		string		`json:"author,omitempty"`
+	Likes		int64		`json:"likes,omitempty"`
+	Time			time.Time	`json:"-"`
+}
 
 
 func SendEmail(toEmail string, subject string, body string) error {
@@ -34,13 +54,6 @@ func SendEmail(toEmail string, subject string, body string) error {
 	return err
 }
 
-type User struct {
-	Name string
-	Pass string
-	Email string
-}
-
-const letterBytes = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
 
 func RandString(n int) string {
     b := make([]byte, n)
@@ -76,8 +89,6 @@ func ReadLines(path string) ([]string, error) {
 }
 
 func GetFileSize(url string, client *http.Client) int64 {
-	//resp, err := http.Head(url)
-	//log.Print("getting img size")
 	resp, err := client.Head(url)	
 	if err != nil {
 		//log.Printf("URL %s is not reachable", url)
@@ -87,6 +98,52 @@ func GetFileSize(url string, client *http.Client) int64 {
 	if c := resp.StatusCode; c == 200 || (c > 300 && c <= 308) {
 		return resp.ContentLength
 	}
-	//log.Print("failed to get file size")
 	return -1
+}
+
+
+func SaveImageIfNeeded(item *Item){	
+	if (item.Img_url == "" || item.Id == 0) {
+		return
+	}
+	name := strconv.FormatInt(item.Id, 10) + ".jpg"
+	if _, err := os.Stat(GetImgDir() + name); err == nil {
+    		return
+	}
+	log.Printf("Saving image %s", item.Img_url)
+	resp, err := http.Get(item.Img_url)
+	if err != nil {
+		return
+	}
+	defer resp.Body.Close()
+	file, err := os.Create(GetImgDir() + name)
+	defer file.Close()
+    if err != nil {
+		log.Printf("[SERV] Could not create the file: %v", err)
+        return
+    }
+	_, err = io.Copy(file, resp.Body)	
+    if err != nil {
+		log.Printf("[SERV] Could not save the image: %v", err)
+        return
+    }	
+	item.Img_url = ""
+}
+
+func DeleteAllImages() error {
+	d, err := os.Open(GetImgDir())
+  	if err != nil {
+        return err
+    }
+	defer d.Close()
+	files, err := d.Readdir(-1)
+    if err != nil {
+        return err
+    }
+    for _, file := range files {
+        if file.Mode().IsRegular() {
+            	err = os.Remove(GetImgDir() + file.Name()) 
+        }
+    }
+	return err
 }
