@@ -14,6 +14,7 @@ var (
 	db 						*sql.DB
 	stFindUserByName			*sql.Stmt
 	stFindUserByEmail		*sql.Stmt
+	stFindCommentsByItem		*sql.Stmt
 	stInsertUser				*sql.Stmt
 	stInsertTempToken		*sql.Stmt
 	stFindTempToken			*sql.Stmt
@@ -72,6 +73,10 @@ func InitializeStatements() {
         panic(err.Error()) 
     }	
 	stFindUserByEmail, err = db.Prepare("SELECT * FROM users WHERE email = ?")
+    if err != nil {
+        panic(err.Error()) 
+    }
+	stFindCommentsByItem, err = db.Prepare("SELECT * FROM comments WHERE item = ?")
     if err != nil {
         panic(err.Error()) 
     }
@@ -230,6 +235,28 @@ func FindUserByName(name string) (*User, error) {
 	} else {
 		return &User{Name: name, Pass: pass, Email: email}, nil
 	}	
+}
+
+func FindCommentsByItem(itemId int64) ([]*Comment, error) {
+	rows, err := stFindCommentsByItem.Query(itemId)
+	defer rows.Close()
+	comments := make([]*Comment, 0)
+	for rows.Next() {
+    		var id, likes int64
+		var date time.Time
+    		var text, author string
+    		err = rows.Scan(&id, &itemId, &date, &text, &author, &likes)
+		if err != nil {
+			return nil, err
+		}
+		comments = append (comments, &Comment{Id: id, Item_id: itemId,
+				Text: text, Author: author, Time: date, Likes: likes})
+	}
+	err = rows.Err() // get any error encountered during iteration
+	if err != nil {
+		return nil, err
+	}
+	return comments, nil
 }
 
 func FindUserByEmail(email string) (*User, error) {

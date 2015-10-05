@@ -9,6 +9,9 @@ import (
 	"github.com/gorilla/context"
 	"github.com/julienschmidt/httprouter"
 	"github.com/justinas/alice"
+	"io"
+	"strings"
+	"compress/gzip"
 )
 
 func init() {
@@ -20,6 +23,7 @@ func init() {
 	router.Post("/services/register", commonHandlers.ThenFunc(register))
 	router.Post("/services/login", commonHandlers.ThenFunc(login))
 	router.Get("/services/confirm", commonHandlers.ThenFunc(confirmEmail))
+	router.Get("/services/itemInfo", commonHandlers.Append(gzipJsonHandler).ThenFunc(getItemInfo))
 	router.Get("/services/logout", authHandlers.ThenFunc(logout))
 	router.Post("/services/comment", authHandlers.ThenFunc(postComment))
 	log.Println("[SERV] Server ready to accept requests")
@@ -76,6 +80,31 @@ func authHandler(next http.Handler) http.Handler {
 		next.ServeHTTP(w, r)
 	}
 
+	return http.HandlerFunc(fn)
+}
+
+type gzipResponseWriter struct {
+	io.Writer
+	http.ResponseWriter
+}
+
+func (w gzipResponseWriter) Write(b []byte) (int, error) {
+	return w.Writer.Write(b)
+}
+
+func gzipJsonHandler(next http.Handler) http.Handler {
+	fn := func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		if !strings.Contains(r.Header.Get("Accept-Encoding"), "gzip") {
+			next.ServeHTTP(w, r)
+			return
+		}
+		w.Header().Set("Content-Encoding", "gzip")
+		gz := gzip.NewWriter(w)
+		defer gz.Close()
+		gzr := gzipResponseWriter{Writer: gz, ResponseWriter: w}
+		next.ServeHTTP(gzr, r)
+	}
 	return http.HandlerFunc(fn)
 }
 

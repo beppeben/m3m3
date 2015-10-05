@@ -6,7 +6,7 @@ import (
 	"time"
 	"math/rand"
 	"encoding/json"
-	"fmt"
+	//"fmt"
 	"bytes"
 	"compress/gzip"
 	"math"
@@ -14,9 +14,11 @@ import (
 
 
 var (
-	max_items 		int = 100
+	max_items 		int = 150
+	max_show			int = 100
 	mill_hour		float64 = 1000*60*60
 	mill_day			float64 = mill_hour*24
+	max_int			int64 = 9223372036854775807
 )
 
 type IManager struct {
@@ -134,16 +136,29 @@ func (m *IManager) RefreshJson(){
 
 func (m *IManager) refreshJson(){	
 	l := len(m.itemsByUrl)
+	if l > max_show {
+		l = max_show
+	}
 	var ary = make([]*Item, l)	
+	/*
 	m.sortedItems.AscendGreaterOrEqual(&Item{}, func(i llrb.Item) bool {
 		//ary = append(ary, i.(*Item))
 		ary[l-1] = i.(*Item)
 		l--
 		return true
 	})
+	*/
+	count := 0
+	m.sortedItems.DescendLessOrEqual(&Item{score: max_int}, func(i llrb.Item) bool {
+		if count >= l {
+			return true
+		}
+		ary[count] = i.(*Item)
+		count++
+		return true
+	})
 	b, err := json.Marshal(ary)
     if err != nil {
-        fmt.Println(err)
         return
     }
 	m.json = string(b)
