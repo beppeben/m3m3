@@ -8,6 +8,7 @@ import (
 var (
 	def_DB_RESET		string = "no"
 	def_IMG_DIR 		string = "/var/www/m3m3/images/"
+	def_HTTP_DIR 	string = "/var/www/m3m3/"
 )
 
 func init() {
@@ -18,6 +19,7 @@ func init() {
 	
 	viper.SetDefault("DB_RESET", def_DB_RESET)
 	viper.SetDefault("IMG_DIR", def_IMG_DIR)
+	viper.SetDefault("HTTP_DIR", def_HTTP_DIR)
 
 	err := viper.ReadInConfig() 
 
@@ -52,6 +54,14 @@ func GetPassDB() string {
 
 func GetImgDir() string {
 	return viper.GetString("IMG_DIR")
+}
+
+func GetHTTPDir() string {
+	return viper.GetString("HTTP_DIR")
+}
+
+func GetAdmin() string {
+	return viper.GetString("ADMIN")
 }
 
 func ResetDB() bool {

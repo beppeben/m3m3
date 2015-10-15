@@ -10,8 +10,13 @@ import (
 	"time"
 	"github.com/gorilla/context"
 	"strconv"
+	//"strings"
 	//"compress/gzip"
 	"encoding/json"
+	"archive/zip"
+	"os"
+	"io"
+	"net/url"
 )
 
 type ItemInfo struct {
@@ -66,6 +71,15 @@ func retrieveItem (w http.ResponseWriter, img_url string, item_id string, create
 			return nil, err
 		}
 	} else if img_url != "" {
+		//img_url = strings.Replace(img_url, " ", "%20", -1)
+		//img_url = url.QueryEscape(img_url)
+		u, err := url.Parse(img_url)
+		if err != nil {
+			fmt.Fprintf(w, "ERROR_BAD_URL")
+			log.Printf("[SERV] Url parsing error: %s", err)
+			return nil, err
+		}
+    		img_url = u.String()
 		item, err = db.FindItemByUrl(img_url)
 		if err != nil {
 			//item does not exist in the db
@@ -94,6 +108,62 @@ func retrieveItem (w http.ResponseWriter, img_url string, item_id string, create
 	return item, nil
 }
 
+func deployFront (w http.ResponseWriter, r *http.Request) {	
+	/*
+	username := context.Get(r, "user").(string)
+	if username != GetAdmin() {
+		http.Error(w, http.StatusText(401), 401)
+		return
+	}
+	*/
+	file, _, err := r.FormFile("bundle")
+	if err != nil {
+		fmt.Fprintf(w, "ERROR_BAD_FILE")
+		return
+	}
+	reader, err := zip.NewReader(file, r.ContentLength)
+	if err != nil {
+    		fmt.Fprintf(w, "ERROR")
+		return
+	}   
+	for _, zf := range reader.File {
+    		dst, err := os.Create(GetHTTPDir() + zf.Name)
+    		if err != nil {
+			log.Printf("[SERV] OS error creating file: %s", err)
+        		fmt.Fprintf(w, "ERROR")
+			return
+    		}
+    		defer dst.Close()
+    		src, err := zf.Open()
+    		if err != nil {
+        		log.Printf("[SERV] OS error opening file: %s", err)
+        		fmt.Fprintf(w, "ERROR")
+			return
+    		}
+    		defer src.Close()
+    		io.Copy(dst, src)
+	}   
+	fmt.Fprintf(w, "OK")
+}
+
+func postLike (w http.ResponseWriter, r *http.Request) {
+	username := context.Get(r, "user").(string)
+	comment_id := r.FormValue("comment_id")
+	id, err := strconv.ParseInt(comment_id, 10, 64)
+	if err != nil {
+		fmt.Fprintf(w, "ERROR_BAD_ID")
+		return
+	}
+	comment, err := db.InsertLike(username, id)
+	if err != nil {
+		fmt.Fprintf(w, "ERROR_BAD_REQUEST")
+		log.Printf("[SERV] Database error: %s", err)
+		return
+	}
+	crawler.NotifyComment(comment)
+	fmt.Fprintf(w, "OK")
+}
+
 func postComment (w http.ResponseWriter, r *http.Request) {
 	username := context.Get(r, "user").(string)
 	text := r.PostFormValue("comment")
@@ -107,7 +177,7 @@ func postComment (w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		return
 	}
-	comment := &Comment{Item_id: item.Id, Time: time.Now(), Text: text, Author: username}
+	comment := &Comment{Item_id: item.Id, Time: time.Now(), Text: text, Author: username, Likes: 0}
 	err = db.InsertComment (comment)
 	if err != nil {
 		fmt.Fprintf(w, "ERROR_DB")
@@ -178,7 +248,6 @@ func setAuthCookies (w http.ResponseWriter, name string) {
 }
 
 func logout (w http.ResponseWriter, r *http.Request) {
-	//token := r.FormValue("token")
 	token := context.Get(r, "token")
 	err := db.DeleteAccessToken(token.(string))
 	if err != nil {
@@ -199,7 +268,8 @@ func confirmEmail (w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	setAuthCookies(w, user.Name)
-	fmt.Fprintf(w, "OK")
+	http.Redirect(w, r, "http://45.55.210.25", 301)
+	//fmt.Fprintf(w, "OK")
 }
 
 func register (w http.ResponseWriter, r *http.Request) {
@@ -238,7 +308,8 @@ func register (w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	SendEmail(email, "Welcome to m3m3", "To confirm your email address, please click on the " + "following link:\r\n/token=" + token)
-	
+	SendEmail(email, "Welcome to m3m3", "To confirm your email address, please click on the " +
+		"following link:\r\nhttp://45.55.210.25/services/confirm?token=" + token)
+
 	fmt.Fprintf(w, "OK")
 }

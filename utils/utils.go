@@ -32,7 +32,7 @@ type Comment struct {
 	Item_id		int64		`json:"-"`
 	Text			string		`json:"text,omitempty"`
 	Author		string		`json:"author,omitempty"`
-	Likes		int64		`json:"likes,omitempty"`
+	Likes		int 			`json:"likes,omitempty"`
 	Time			time.Time	`json:"-"`
 }
 
@@ -54,13 +54,19 @@ func SendEmail(toEmail string, subject string, body string) error {
 	return err
 }
 
+func PanicOnErr(err error) {
+    if err != nil {
+        panic(err.Error())
+    }
+}
+
 
 func RandString(n int) string {
-    b := make([]byte, n)
-    for i := range b {
-        b[i] = letterBytes[rand.Intn(len(letterBytes))]
-    }
-    return string(b)
+ 	b := make([]byte, n)
+  	for i := range b {
+ 		b[i] = letterBytes[rand.Intn(len(letterBytes))]
+  	}
+ 	return string(b)
 }
 
 func ComputeMd5(text string) string {
@@ -116,34 +122,34 @@ func SaveImageIfNeeded(item *Item){
 		return
 	}
 	defer resp.Body.Close()
-	file, err := os.Create(GetImgDir() + name)
-	defer file.Close()
-    if err != nil {
+	file, err := os.Create(GetImgDir() + name)	
+ 	if err != nil {
 		log.Printf("[SERV] Could not create the file: %v", err)
-        return
-    }
+     	return
+	}
+	defer file.Close()
 	_, err = io.Copy(file, resp.Body)	
-    if err != nil {
+ 	if err != nil {
 		log.Printf("[SERV] Could not save the image: %v", err)
-        return
-    }	
+     	return
+	}	
 	item.Img_url = ""
 }
 
 func DeleteAllImages() error {
 	d, err := os.Open(GetImgDir())
-  	if err != nil {
-        return err
-    }
+		if err != nil {
+     	return err
+ 	}
 	defer d.Close()
 	files, err := d.Readdir(-1)
-    if err != nil {
-        return err
-    }
-    for _, file := range files {
-        if file.Mode().IsRegular() {
-            	err = os.Remove(GetImgDir() + file.Name()) 
-        }
-    }
+	if err != nil {
+    		return err
+	}
+	for _, file := range files {
+    		if file.Mode().IsRegular() {
+        		err = os.Remove(GetImgDir() + file.Name()) 
+   		}
+ 	}
 	return err
 }

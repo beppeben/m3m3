@@ -1,19 +1,18 @@
 package crawler
 
 import (
-	//"fmt"
 	. "github.com/beppeben/m3m3/utils"
+	"github.com/beppeben/m3m3/db"
 	"io/ioutil"
 	"log"
-	//"net/http"
 	"regexp"
-	//"github.com/petar/GoLLRB/llrb"
 )
 
 var (
 	max_item_source 	int   = 5
 	max_item_crawl 	int	  = 5
 	min_img_size   	int64 = 35 * 1000
+	max_img_size   	int64 = 200 * 1000
 	max_img_miss 	int   = 10
 
 	img_regx   *regexp.Regexp = regexp.MustCompile("http([^<>\"]+?)\\.(jpg|jpeg)(&quot;|\")")
@@ -67,21 +66,24 @@ func (source *Source) update(num chan int) {
 		
 		//candidate images
 		img_urls := make([]string, 0)
-		
-		
-		
+	
 		//skip item if already managed
 		for i := 0; i < l; i++ {
 			img_urls = append(img_urls, "http" + url_matcher[i][1] + "." + url_matcher[i][2])
 			if manager.IsManaged(&Item{Img_url: img_urls[i]}) {
 				managed++
 				continue outer
-			} 			
+			} else if _, err = db.FindItemByUrl(img_urls[i]); err == nil {
+				log.Println("found url in db")
+				continue outer
+			}
+	
 		}
 		
 		//retain item, if a sufficently large image is found
 		for i := 0; i < l; i++ {
-			if GetFileSize(img_urls[i], client) > min_img_size {
+			size := GetFileSize(img_urls[i], client)
+			if size > min_img_size && size < max_img_size {
 				manager.Insert(&Item{Title: title, Img_url: img_urls[i]})
 				managed++
 				updated++

@@ -10,6 +10,7 @@ import (
 	"bytes"
 	"compress/gzip"
 	"math"
+	"log"
 )
 
 
@@ -75,7 +76,7 @@ func (m *IManager) NotifyComment (comment *Comment) {
 	//only update the best comment if it is null or has zero likes
 	m.sortedItems.Delete(item)
 	prev_comm := item.BestComment
-	if prev_comm == nil || prev_comm.Likes == 0 {
+	if prev_comm == nil || comment.Likes >= prev_comm.Likes {
 		item.BestComment = comment
 	}
 	item.Ncomments = item.Ncomments + 1
@@ -113,6 +114,13 @@ func (m *IManager) GetItemByUrl (img_url string) (*Item, bool) {
 	return item, ok
 }
 
+func (m *IManager) GetItemById (id int64) (*Item, bool) {
+	m.mutex.RLock()	
+	defer m.mutex.RUnlock()
+	item, ok := m.itemsById[id]
+	return item, ok
+}
+
 
 func (m *IManager) Insert (item *Item) bool {
 	m.mutex.Lock()
@@ -140,20 +148,15 @@ func (m *IManager) refreshJson(){
 		l = max_show
 	}
 	var ary = make([]*Item, l)	
-	/*
-	m.sortedItems.AscendGreaterOrEqual(&Item{}, func(i llrb.Item) bool {
-		//ary = append(ary, i.(*Item))
-		ary[l-1] = i.(*Item)
-		l--
-		return true
-	})
-	*/
 	count := 0
 	m.sortedItems.DescendLessOrEqual(&Item{score: max_int}, func(i llrb.Item) bool {
 		if count >= l {
 			return true
 		}
 		ary[count] = i.(*Item)
+		if _, ok := m.itemsByUrl[ary[count].Img_url]; !ok {
+			log.Printf("WARNING!!!! Item %s is in the tree but not in the index!", ary[count].Img_url)
+		}
 		count++
 		return true
 	})

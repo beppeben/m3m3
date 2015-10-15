@@ -25,7 +25,9 @@ func init() {
 	router.Get("/services/confirm", commonHandlers.ThenFunc(confirmEmail))
 	router.Get("/services/itemInfo", commonHandlers.Append(gzipJsonHandler).ThenFunc(getItemInfo))
 	router.Get("/services/logout", authHandlers.ThenFunc(logout))
+	router.Get("/services/like", authHandlers.ThenFunc(postLike))
 	router.Post("/services/comment", authHandlers.ThenFunc(postComment))
+	router.Post("/services/deployFront", commonHandlers.ThenFunc(deployFront))
 	log.Println("[SERV] Server ready to accept requests")
 	http.ListenAndServe(":8080", router)
 }
@@ -71,7 +73,7 @@ func authHandler(next http.Handler) http.Handler {
 		token := cookie.Value
 		name, err := db.FindUserNameByToken(token)
 		if err != nil {
-			log.Printf("[SERV] Token not in database: %s", err)
+			log.Printf("[SERV] Invalid token: %s", err)
 			http.Error(w, http.StatusText(401), 401)
 			return
 		}

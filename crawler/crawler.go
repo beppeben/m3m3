@@ -39,6 +39,10 @@ func GetItemByUrl (url string) (*Item, bool) {
 	return manager.GetItemByUrl(url)
 }
 
+func GetItemById (id int64) (*Item, bool) {
+	return manager.GetItemById(id)
+}
+
 func NotifyItemId (url string, id int64) {
 	manager.NotifyItemId (url, id)
 }
