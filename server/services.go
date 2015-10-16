@@ -16,7 +16,7 @@ import (
 	"archive/zip"
 	"os"
 	"io"
-	"net/url"
+	//"net/url"
 )
 
 type ItemInfo struct {
@@ -25,13 +25,13 @@ type ItemInfo struct {
 }
 
 func getItemInfo (w http.ResponseWriter, r *http.Request) {
-	img_url := r.FormValue("img_url")
+	item_tid := r.FormValue("item_tid")
 	item_id := r.FormValue("item_id")
-	if img_url == "" && item_id == "" {
+	if item_tid == "" && item_id == "" {
 		fmt.Fprintf(w, "ERROR_FORMAT")
 		return
 	} 
-	item, err := retrieveItem (w, img_url, item_id, false)
+	item, err := retrieveItem (w, item_tid, item_id, false)
 	if err != nil {
 		return
 	}
@@ -55,7 +55,7 @@ func getItems (w http.ResponseWriter, r *http.Request) {
 	w.Write(crawler.GetZippedItems())	
 }
 
-func retrieveItem (w http.ResponseWriter, img_url string, item_id string, create bool) (*Item, error) {
+func retrieveItem (w http.ResponseWriter, item_tid string, item_id string, create bool) (*Item, error) {
 	var item *Item
 	var err error
 	var id int64
@@ -70,40 +70,35 @@ func retrieveItem (w http.ResponseWriter, img_url string, item_id string, create
 			fmt.Fprintf(w, "ERROR_NOITEM")
 			return nil, err
 		}
-	} else if img_url != "" {
-		//img_url = strings.Replace(img_url, " ", "%20", -1)
-		//img_url = url.QueryEscape(img_url)
-		u, err := url.Parse(img_url)
-		if err != nil {
-			fmt.Fprintf(w, "ERROR_BAD_URL")
-			log.Printf("[SERV] Url parsing error: %s", err)
+	} else if item_tid != "" {
+
+		var ok bool
+		item, ok = crawler.GetItemByTid(item_tid)
+		//avoid comments to unmanaged items, unless they're done by id
+		if !ok {				
+			fmt.Fprintf(w, "ERROR_UNMANAGED")
 			return nil, err
 		}
-    		img_url = u.String()
-		item, err = db.FindItemByUrl(img_url)
+		if !create {
+			return item, nil
+		}
+		//create the item in the db
+		id, err = db.InsertItem(item.Url, item.Title, item.Source)	
 		if err != nil {
-			//item does not exist in the db
-			var ok bool
-			item, ok = crawler.GetItemByUrl (img_url)
-			//avoid comments to unmanaged items, unless they're done by id
-			if !ok {				
-				fmt.Fprintf(w, "ERROR_UNMANAGED")
-				return nil, err
-			}
-			if !create {
-				return item, nil
-			}
-			//create the item in the db
-			id, err = db.InsertItem(img_url, item.Title)	
-			if err != nil {
-				fmt.Fprintf(w, "ERROR_DB")
-				log.Printf("[SERV] Database error: %s", err)
-				return nil, err
-			}
-			//notify the item manager about the new item id
-			crawler.NotifyItemId (img_url, id)
-		} 
-		go SaveImageIfNeeded(item)
+			fmt.Fprintf(w, "ERROR_DB")
+			log.Printf("[SERV] Database error: %s", err)
+			return nil, err
+		}
+		//notify the item manager about the new item id
+		crawler.NotifyItemId (item_tid, id)
+		
+		//go SaveImageIfNeeded(item)
+		err = PersistTempImage (item_tid, id)
+		if err != nil {
+			fmt.Fprintf(w, "ERROR_DB")
+			log.Printf("[SERV] Database error: %s", err)
+			return nil, err
+		}
 	} 
 	return item, nil
 }
@@ -167,13 +162,13 @@ func postLike (w http.ResponseWriter, r *http.Request) {
 func postComment (w http.ResponseWriter, r *http.Request) {
 	username := context.Get(r, "user").(string)
 	text := r.PostFormValue("comment")
-	img_url := r.PostFormValue("img_url")
+	item_tid := r.PostFormValue("item_tid")
 	item_id := r.PostFormValue("item_id")
-	if text == "" || (img_url == "" && item_id == "") {
+	if text == "" || (item_tid == "" && item_id == "") {
 		fmt.Fprintf(w, "ERROR_FORMAT")
 		return
 	} 	
-	item, err := retrieveItem (w, img_url, item_id, true)
+	item, err := retrieveItem (w, item_tid, item_id, true)
 	if err != nil {
 		return
 	}

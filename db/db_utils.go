@@ -115,7 +115,7 @@ func InitializeStatements() {
 	stFindCommentById, err = db.Prepare("SELECT * FROM comments WHERE id = ?")
     PanicOnErr(err)
 		
-	stInsertItem, err = db.Prepare("INSERT INTO items VALUES(?,?,?)")
+	stInsertItem, err = db.Prepare("INSERT INTO items VALUES(?,?,?,?)")
 	PanicOnErr(err)
 	
 	stInsertComment, err = db.Prepare("INSERT INTO comments VALUES(?,?,?,?,?,?)")

@@ -24,7 +24,7 @@ var (
 
 type IManager struct {
 	sortedItems		*llrb.LLRB
-	itemsByUrl		map[string]*Item
+	itemsByTid		map[string]*Item
 	itemsById		map[int64]*Item
 	mutex			*sync.RWMutex
 	json				string
@@ -33,11 +33,13 @@ type IManager struct {
 
 //this corresponds to an image (a piece of news) shown in the feeds page
 type Item struct {
-	Img_url 			string		`json:"img_url,omitempty"`
+	Tid	 			string		`json:"temp_id,omitempty"`
 	Id				int64		`json:"id,omitempty"`
 	Title			string		`json:"title,omitempty"`
+	Source			string 		`json:"source,omitempty"`
 	Ncomments		int			`json:"n_comm"`
 	BestComment		*Comment		`json:"b_comm,omitempty"`
+	Url				string		`json:"-"`
 	time				int64		/*`json:"-"`*/	
 	score 			int64
 }
@@ -45,7 +47,7 @@ type Item struct {
 func NewManager() *IManager {
 	m := &IManager{}
 	m.sortedItems = llrb.New()
-	m.itemsByUrl = make(map[string]*Item)
+	m.itemsByTid = make(map[string]*Item)
 	m.itemsById = make(map[int64]*Item)
 	m.mutex = &sync.RWMutex{}
 	return m
@@ -85,10 +87,10 @@ func (m *IManager) NotifyComment (comment *Comment) {
 	m.refreshJson()	
 }
 
-func (m *IManager) NotifyItemId (url string, id int64) {
+func (m *IManager) NotifyItemId (tid string, id int64) {
 	m.mutex.Lock()	
 	defer m.mutex.Unlock()
-	item, ok := m.itemsByUrl[url]
+	item, ok := m.itemsByTid[tid]
 	if !ok {
 		return
 	}
@@ -100,17 +102,17 @@ func (m *IManager) NotifyItemId (url string, id int64) {
 func (m *IManager) IsManaged (item *Item) bool {
 	m.mutex.RLock()	
 	defer m.mutex.RUnlock()
-	_, ok := m.itemsByUrl[item.Img_url]
+	_, ok := m.itemsByTid[item.Tid]
 	if !ok {
 		_, ok = m.itemsById[item.Id]
 	}
 	return ok
 }
 
-func (m *IManager) GetItemByUrl (img_url string) (*Item, bool) {
+func (m *IManager) GetItemByTid (tid string) (*Item, bool) {
 	m.mutex.RLock()	
 	defer m.mutex.RUnlock()
-	item, ok := m.itemsByUrl[img_url]
+	item, ok := m.itemsByTid[tid]
 	return item, ok
 }
 
@@ -125,13 +127,13 @@ func (m *IManager) GetItemById (id int64) (*Item, bool) {
 func (m *IManager) Insert (item *Item) bool {
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
-	_, ok := m.itemsByUrl[item.Img_url]
+	_, ok := m.itemsByTid[item.Tid]
 	if ok {return false}
 	//set timestamp partly randomly to shuffle items
 	item.time = time.Now().UnixNano()/1000000 + rand.Int63n(1000)
 	item.updateScore()
 	m.sortedItems.InsertNoReplace(item)
-	m.itemsByUrl[item.Img_url] = item
+	m.itemsByTid[item.Tid] = item
 	m.removeTail()
 	return true
 }
@@ -143,7 +145,7 @@ func (m *IManager) RefreshJson(){
 }
 
 func (m *IManager) refreshJson(){	
-	l := len(m.itemsByUrl)
+	l := len(m.itemsByTid)
 	if l > max_show {
 		l = max_show
 	}
@@ -154,9 +156,9 @@ func (m *IManager) refreshJson(){
 			return true
 		}
 		ary[count] = i.(*Item)
-		if _, ok := m.itemsByUrl[ary[count].Img_url]; !ok {
-			log.Printf("WARNING!!!! Item %s is in the tree but not in the index!", ary[count].Img_url)
-		}
+		//if _, ok := m.itemsByTid[ary[count].Tid]; !ok {
+		//	log.Printf("WARNING!!!! Item %s is in the tree but not in the index!", ary[count].Tid)
+		//}		
 		count++
 		return true
 	})
@@ -174,14 +176,18 @@ func (m *IManager) refreshJson(){
 
 //to be called inside a lock
 func (m *IManager) removeTail(){
-	l := len(m.itemsByUrl)
+	l := len(m.itemsByTid)
 	if l <= max_items {return}	
 	for i := 0; i < l-max_items; i++ {
 		min := m.sortedItems.DeleteMin().(*Item)
-		delete(m.itemsByUrl, min.Img_url)
+		delete(m.itemsByTid, min.Tid)
 		delete(m.itemsById, min.Id)
+		err := DeleteTempImage(min.Tid)
+		if err != nil {
+			log.Printf("[CRAW] Error: %v", err)
+		}
 	}
-	if (m.sortedItems.Len() != len(m.itemsByUrl)){
+	if (m.sortedItems.Len() != len(m.itemsByTid)){
 		panic("manager lists have different lengths!!")
 	}
 }

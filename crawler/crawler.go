@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 	"time"
+	"strings"
 )
 
 var (
@@ -35,8 +36,8 @@ func GetZippedItems() []byte {
 	return manager.GetZippedJson()
 }
 
-func GetItemByUrl (url string) (*Item, bool) {
-	return manager.GetItemByUrl(url)
+func GetItemByTid (tid string) (*Item, bool) {
+	return manager.GetItemByTid(tid)
 }
 
 func GetItemById (id int64) (*Item, bool) {
@@ -52,14 +53,23 @@ func NotifyComment (comment *Comment) {
 }
 
 func getSourcesFromFile() {
-	rss_urls, err := ReadLines("./config/rss.conf")
+	lines, err := ReadLines("./config/rss.conf")
 	if err != nil {
 		log.Printf("[CRAW] Couldn't read rss list: %s", err)
 		return
 	}
 	sources = make([]Source, 0)
+	/*
 	for _, s_url := range rss_urls {
 		sources = append(sources, Source{url: s_url})
+	}
+	*/
+	for _, line := range lines {
+		parts := strings.Split(line, " --- ")
+		if len(parts) != 2 {
+			continue
+		}
+		sources = append(sources, Source{url: parts[0], name: parts[1]})
 	}
 }
 
@@ -78,7 +88,7 @@ func updateSources() {
 	//this is to avoid annoying logs about unsolicited requests to idle conns
 	tr.CloseIdleConnections()
 	manager.RefreshJson()
-	//log.Printf("[CRAW] Sources updated with %d items", total)
+	log.Printf("[CRAW] Sources updated with %d items", total)
 	time.Sleep(time.Minute * wait_time)
 	updateSources()
 }

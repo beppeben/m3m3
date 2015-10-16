@@ -12,7 +12,7 @@ var (
 	max_item_source 	int   = 5
 	max_item_crawl 	int	  = 5
 	min_img_size   	int64 = 35 * 1000
-	max_img_size   	int64 = 200 * 1000
+	//max_img_size   	int64 = 1000 * 1000
 	max_img_miss 	int   = 10
 
 	img_regx   *regexp.Regexp = regexp.MustCompile("http([^<>\"]+?)\\.(jpg|jpeg)(&quot;|\")")
@@ -24,6 +24,7 @@ var (
 
 type Source struct {
 	url      	string
+	name			string
 }
 
 
@@ -70,7 +71,7 @@ func (source *Source) update(num chan int) {
 		//skip item if already managed
 		for i := 0; i < l; i++ {
 			img_urls = append(img_urls, "http" + url_matcher[i][1] + "." + url_matcher[i][2])
-			if manager.IsManaged(&Item{Img_url: img_urls[i]}) {
+			if manager.IsManaged(&Item{Tid: ComputeMd5(img_urls[i])}) {
 				managed++
 				continue outer
 			} else if _, err = db.FindItemByUrl(img_urls[i]); err == nil {
@@ -80,11 +81,17 @@ func (source *Source) update(num chan int) {
 	
 		}
 		
-		//retain item, if a sufficently large image is found
+		//retain item, if a sufficently "good" image is found
 		for i := 0; i < l; i++ {
 			size := GetFileSize(img_urls[i], client)
-			if size > min_img_size && size < max_img_size {
-				manager.Insert(&Item{Title: title, Img_url: img_urls[i]})
+			if size > min_img_size {
+				err = SaveTempImage (img_urls[i], 500, 600, client)
+				if err != nil {
+					//log.Printf("[SERV] Error: %v", err)
+					continue
+				}
+				manager.Insert(&Item{Title: title, Tid: ComputeMd5(img_urls[i]), 
+					Url: img_urls[i], Source: source.name})
 				managed++
 				updated++
 				break

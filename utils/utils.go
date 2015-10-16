@@ -13,6 +13,10 @@ import (
 	"io"
 	"strconv"
 	"time"
+	//"image"
+	"image/jpeg"
+	"errors"
+	"github.com/nfnt/resize"
 )
 
 var (
@@ -95,6 +99,7 @@ func ReadLines(path string) ([]string, error) {
 }
 
 func GetFileSize(url string, client *http.Client) int64 {
+	//log.Printf("Measuring URL %s", url)
 	resp, err := client.Head(url)	
 	if err != nil {
 		//log.Printf("URL %s is not reachable", url)
@@ -107,7 +112,59 @@ func GetFileSize(url string, client *http.Client) int64 {
 	return -1
 }
 
+func SaveTempImage (url string, min_px_size int, exit_size uint, client *http.Client) error {
+	//log.Printf("Getting URL %s", url)
+	resp, err := client.Get(url)	
+	if err != nil {
+		//log.Printf("URL %s is not reachable", url)
+		return err
+	}
+	defer resp.Body.Close()
+	image, err := jpeg.Decode(resp.Body)
+	if err != nil {
+		return err
+	}
+	width := image.Bounds().Max.X - image.Bounds().Min.X
+	height:= image.Bounds().Max.Y - image.Bounds().Min.Y
 
+	if width < min_px_size && height < min_px_size {
+		return errors.New("Image is too small")
+	}
+	image = resize.Thumbnail(exit_size, exit_size, image, resize.NearestNeighbor)
+	filename := ComputeMd5(url) + ".jpg"
+	file, err := os.Create(GetTempImgDir() + filename)
+	if err != nil {
+		log.Print("error creating file")
+		return err
+	}
+	defer file.Close()
+	opts := &jpeg.Options{Quality: 60}
+	err = jpeg.Encode(file, image, opts)	
+	return err
+}
+
+func PersistTempImage (tid string, id int64) error {
+	if (tid == "" || id == 0) {
+		return errors.New("Error persisting image, empty names")
+	}
+	orig_name := tid + ".jpg"
+	orig, err := os.Open(GetTempImgDir() + orig_name)
+	if err != nil {
+		return err
+	}
+	defer orig.Close()
+	dest_name := strconv.FormatInt(id, 10) + ".jpg"
+	dest, err := os.Create(GetImgDir() + dest_name)
+	if err != nil {
+		return err
+	}
+	defer dest.Close()
+	_, err = io.Copy(dest, orig)
+	return err
+}
+
+//replace with copy from tempid directory
+/*
 func SaveImageIfNeeded(item *Item){	
 	if (item.Img_url == "" || item.Id == 0) {
 		return
@@ -135,9 +192,19 @@ func SaveImageIfNeeded(item *Item){
 	}	
 	item.Img_url = ""
 }
+*/
 
 func DeleteAllImages() error {
-	d, err := os.Open(GetImgDir())
+	err := DeleteFilesInDir(GetImgDir())
+	if err != nil {
+		return err
+	}
+	err = DeleteFilesInDir(GetTempImgDir())
+	return err
+}
+
+func DeleteFilesInDir(dir string) error {
+	d, err := os.Open(dir)
 		if err != nil {
      	return err
  	}
@@ -148,8 +215,13 @@ func DeleteAllImages() error {
 	}
 	for _, file := range files {
     		if file.Mode().IsRegular() {
-        		err = os.Remove(GetImgDir() + file.Name()) 
+        		err = os.Remove(dir + file.Name()) 
    		}
  	}
+	return err
+}
+
+func DeleteTempImage(tid string) error {
+	err := os.Remove(GetTempImgDir() + tid + ".jpg")
 	return err
 }

@@ -55,8 +55,8 @@ func InsertAccessToken (tempToken string, name string, t time.Time) error {
 	return err
 }
 
-func InsertItem (img_url string, title string) (int64, error) {
-	result, err := stInsertItem.Exec(nil, img_url, title)
+func InsertItem (img_url, title, source string) (int64, error) {
+	result, err := stInsertItem.Exec(nil, img_url, title, source)
 	if err != nil {
 		return -1, err
 	} else {
@@ -154,24 +154,23 @@ func FindUserByEmail(email string) (*User, error) {
 }
 
 func FindItemByUrl(img_url string) (*Item, error) {
-	var title string
+	var title, source string
 	var id int64
-	err := stFindItemByUrl.QueryRow(img_url).Scan(&id, &img_url, &title)
+	err := stFindItemByUrl.QueryRow(img_url).Scan(&id, &img_url, &title, &source)
 	if err != nil {
 		return &Item{}, err
 	} else {
-		return &Item{Id: id, Img_url: img_url, Title: title}, nil
+		return &Item{Id: id, Title: title, Source: source, Url: img_url}, nil
 	}	
 }
 
 func FindItemById(id int64) (*Item, error) {
-	var title string
-	var img_url string
-	err := stFindItemById.QueryRow(id).Scan(&id, &img_url, &title)
+	var title, img_url, source string
+	err := stFindItemById.QueryRow(id).Scan(&id, &img_url, &title, &source)
 	if err != nil {
 		return &Item{}, err
 	} else {
-		return &Item{Id: id, Img_url: img_url, Title: title}, nil
+		return &Item{Id: id, Title: title, Source: source, Url: img_url}, nil
 	}	
 }
 
