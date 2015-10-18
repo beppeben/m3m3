@@ -26,6 +26,7 @@ var (
 	stFindItemByUrl			*sql.Stmt
 	stFindItemById			*sql.Stmt
 	stFindCommentById		*sql.Stmt
+	stFindBestComments		*sql.Stmt
 	stInsertItem				*sql.Stmt
 	stInsertComment			*sql.Stmt
 )
@@ -113,6 +114,10 @@ func InitializeStatements() {
     PanicOnErr(err)
 	
 	stFindCommentById, err = db.Prepare("SELECT * FROM comments WHERE id = ?")
+    PanicOnErr(err)
+	
+	stFindBestComments, err = db.Prepare("SELECT comments.*, items.imgurl, items.title, items.source from comments " +
+		"INNER JOIN items ON comments.item=items.id ORDER BY likes DESC LIMIT 100")
     PanicOnErr(err)
 		
 	stInsertItem, err = db.Prepare("INSERT INTO items VALUES(?,?,?,?)")

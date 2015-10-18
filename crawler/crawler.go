@@ -21,8 +21,9 @@ func Start_Crawler() {}
 
 func init() {
 	log.Println("[CRAW] Crawler started, updating sources...")
+	timeout := time.Duration(5 * time.Second)
 	tr = &http.Transport{}
-	client = &http.Client{Transport: tr}
+	client = &http.Client{Transport: tr, Timeout: timeout}
 	manager = NewManager()
 	c = make(chan int)
 	go updateSources()
@@ -59,11 +60,6 @@ func getSourcesFromFile() {
 		return
 	}
 	sources = make([]Source, 0)
-	/*
-	for _, s_url := range rss_urls {
-		sources = append(sources, Source{url: s_url})
-	}
-	*/
 	for _, line := range lines {
 		parts := strings.Split(line, " --- ")
 		if len(parts) != 2 {
@@ -88,7 +84,7 @@ func updateSources() {
 	//this is to avoid annoying logs about unsolicited requests to idle conns
 	tr.CloseIdleConnections()
 	manager.RefreshJson()
-	log.Printf("[CRAW] Sources updated with %d items", total)
+	//log.Printf("[CRAW] Sources updated with %d items", total)
 	time.Sleep(time.Minute * wait_time)
 	updateSources()
 }

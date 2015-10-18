@@ -41,12 +41,23 @@ func getItemInfo (w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			fmt.Fprintf(w, "ERROR_DB")
 			log.Printf("[SERV] Database error: %s", err)
+			return
 		}
 	}	
-	result := &ItemInfo{It: &Item{Id: item.Id, Title: item.Title, Ncomments: item.Ncomments},
-				Comments: comments}
+	result := &ItemInfo{It: item, Comments: comments}
 	enc := json.NewEncoder(w)
 	enc.Encode(result)
+}
+
+func getBestComments (w http.ResponseWriter, r *http.Request) {
+	comments, err := db.FindBestComments()
+	if err != nil {
+		fmt.Fprintf(w, "ERROR_DB")
+		log.Printf("[SERV] Database error: %s", err)
+		return
+	}
+	enc := json.NewEncoder(w)
+	enc.Encode(comments)
 }
 
 func getItems (w http.ResponseWriter, r *http.Request) {
@@ -79,7 +90,7 @@ func retrieveItem (w http.ResponseWriter, item_tid string, item_id string, creat
 			fmt.Fprintf(w, "ERROR_UNMANAGED")
 			return nil, err
 		}
-		if !create {
+		if !create || item.Id != 0 {
 			return item, nil
 		}
 		//create the item in the db

@@ -20,6 +20,7 @@ func init() {
 	
 	router := NewRouter()
 	router.Get("/services/items", commonHandlers.ThenFunc(getItems))
+	router.Get("/services/bestComments", commonHandlers.ThenFunc(getBestComments))
 	router.Post("/services/register", commonHandlers.ThenFunc(register))
 	router.Post("/services/login", commonHandlers.ThenFunc(login))
 	router.Get("/services/confirm", commonHandlers.ThenFunc(confirmEmail))

@@ -33,13 +33,13 @@ type IManager struct {
 
 //this corresponds to an image (a piece of news) shown in the feeds page
 type Item struct {
-	Tid	 			string		`json:"temp_id,omitempty"`
-	Id				int64		`json:"id,omitempty"`
+	Tid	 			string		`json:"item_tid,omitempty"`
+	Id				int64		`json:"item_id,omitempty"`
 	Title			string		`json:"title,omitempty"`
 	Source			string 		`json:"source,omitempty"`
-	Ncomments		int			`json:"n_comm"`
+	Ncomments		int			`json:"-"`
 	BestComment		*Comment		`json:"b_comm,omitempty"`
-	Url				string		`json:"-"`
+	Url				string		`json:"img_url,omitempty"`
 	time				int64		/*`json:"-"`*/	
 	score 			int64
 }
@@ -81,7 +81,9 @@ func (m *IManager) NotifyComment (comment *Comment) {
 	if prev_comm == nil || comment.Likes >= prev_comm.Likes {
 		item.BestComment = comment
 	}
-	item.Ncomments = item.Ncomments + 1
+	if comment.Likes == 0 {
+		item.Ncomments = item.Ncomments + 1
+	}	
 	item.updateScore()
 	m.sortedItems.InsertNoReplace(item)
 	m.refreshJson()	

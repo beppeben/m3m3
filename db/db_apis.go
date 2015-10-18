@@ -30,7 +30,12 @@ func InsertLike (username string, comment_id int64) (comment *Comment, err error
 		}
 		return comment, nil
 	})
-	return  obj.(*Comment), err
+	if obj != nil {
+		return obj.(*Comment), err
+	} else {
+		return  nil, err
+	}
+	
 }
 
 
@@ -136,12 +141,39 @@ func FindCommentsByItem(itemId int64) ([]*Comment, error) {
 		comments = append (comments, &Comment{Id: id, Item_id: itemId,
 				Text: text, Author: author, Time: date, Likes: likes})
 	}
-	err = rows.Err() // get any error encountered during iteration
+	err = rows.Err() 
 	if err != nil {
 		return nil, err
 	}
 	return comments, nil
 }
+
+
+func FindBestComments() ([]*Item, error) {
+	rows, err := stFindBestComments.Query()
+	defer rows.Close()
+	items := make([]*Item, 0)
+	for rows.Next() {
+    		var item_id, comment_id int64
+		var likes int
+		var date time.Time
+    		var text, author, url, title, source string
+    		err = rows.Scan(&comment_id, &item_id, &date, &text, &author, &likes, &url, &title, &source)
+		if err != nil {
+			return nil, err
+		}
+		item := &Item{Id: item_id, Url: url, Title: title, Source: source}
+		comment := &Comment{Id: comment_id, Text: text, Author: author, Likes: likes}
+		item.BestComment = comment
+		items = append (items, item)
+	}
+	err = rows.Err() 
+	if err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 
 func FindUserByEmail(email string) (*User, error) {
 	var pass, name string

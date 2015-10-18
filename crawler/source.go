@@ -34,7 +34,7 @@ func (source *Source) update(num chan int) {
 	//log.Printf("getting %s", source.url)
 	resp, err := client.Get(source.url)
 	if err != nil {
-		log.Printf("URL %s is not reachable", source.url)
+		//log.Printf("URL %s is not reachable", source.url)
 		return
 	}
 	
