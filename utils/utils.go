@@ -36,9 +36,10 @@ type Comment struct {
 	Item_id		int64		`json:"-"`
 	Text			string		`json:"text,omitempty"`
 	Author		string		`json:"author,omitempty"`
-	Likes		int 			`json:"likes,omitempty"`
+	Likes		int 			`json:"likes"`
 	Time			time.Time	`json:"-"`
 }
+
 
 
 func SendEmail(toEmail string, subject string, body string) error {
@@ -112,35 +113,37 @@ func GetFileSize(url string, client *http.Client) int64 {
 	return -1
 }
 
-func SaveTempImage (url string, min_px_size int, exit_size uint, client *http.Client) error {
+func SaveTempImage (url string, client *http.Client) (string, error) {
 	//log.Printf("Getting URL %s", url)
 	resp, err := client.Get(url)	
 	if err != nil {
 		//log.Printf("URL %s is not reachable", url)
-		return err
+		return "", err
 	}
 	defer resp.Body.Close()
 	image, err := jpeg.Decode(resp.Body)
 	if err != nil {
-		return err
+		return "", err
 	}
 	width := image.Bounds().Max.X - image.Bounds().Min.X
 	height:= image.Bounds().Max.Y - image.Bounds().Min.Y
 
-	if width < min_px_size && height < min_px_size {
-		return errors.New("Image is too small")
+	if width < 500 && height < 500 || height > width {
+		return "", errors.New("Bad image format")
 	}
-	image = resize.Thumbnail(exit_size, exit_size, image, resize.NearestNeighbor)
-	filename := ComputeMd5(url) + ".jpg"
-	file, err := os.Create(GetTempImgDir() + filename)
+	if width > 1000 {
+		image = resize.Thumbnail(600, 600, image, resize.NearestNeighbor)
+	}	
+	hash := ComputeMd5(url)
+	file, err := os.Create(GetTempImgDir() + hash + ".jpg")
 	if err != nil {
 		log.Print("error creating file")
-		return err
+		return "", err
 	}
 	defer file.Close()
 	opts := &jpeg.Options{Quality: 60}
 	err = jpeg.Encode(file, image, opts)	
-	return err
+	return hash, err
 }
 
 func PersistTempImage (tid string, id int64) error {
@@ -163,36 +166,6 @@ func PersistTempImage (tid string, id int64) error {
 	return err
 }
 
-//replace with copy from tempid directory
-/*
-func SaveImageIfNeeded(item *Item){	
-	if (item.Img_url == "" || item.Id == 0) {
-		return
-	}
-	name := strconv.FormatInt(item.Id, 10) + ".jpg"
-	if _, err := os.Stat(GetImgDir() + name); err == nil {
-    		return
-	}
-	log.Printf("Saving image %s", item.Img_url)
-	resp, err := http.Get(item.Img_url)
-	if err != nil {
-		return
-	}
-	defer resp.Body.Close()
-	file, err := os.Create(GetImgDir() + name)	
- 	if err != nil {
-		log.Printf("[SERV] Could not create the file: %v", err)
-     	return
-	}
-	defer file.Close()
-	_, err = io.Copy(file, resp.Body)	
- 	if err != nil {
-		log.Printf("[SERV] Could not save the image: %v", err)
-     	return
-	}	
-	item.Img_url = ""
-}
-*/
 
 func DeleteAllImages() error {
 	err := DeleteFilesInDir(GetImgDir())

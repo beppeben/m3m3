@@ -11,7 +11,7 @@ import (
 	"github.com/gorilla/context"
 	"strconv"
 	//"strings"
-	//"compress/gzip"
+	"compress/gzip"
 	"encoding/json"
 	"archive/zip"
 	"os"
@@ -56,7 +56,11 @@ func getBestComments (w http.ResponseWriter, r *http.Request) {
 		log.Printf("[SERV] Database error: %s", err)
 		return
 	}
-	enc := json.NewEncoder(w)
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Content-Encoding", "gzip")
+	zw := gzip.NewWriter(w)
+	defer zw.Close()
+	enc := json.NewEncoder(zw)
 	enc.Encode(comments)
 }
 

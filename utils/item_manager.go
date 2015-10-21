@@ -26,6 +26,7 @@ type IManager struct {
 	sortedItems		*llrb.LLRB
 	itemsByTid		map[string]*Item
 	itemsById		map[int64]*Item
+	itemsByTitle		map[string]*Item
 	mutex			*sync.RWMutex
 	json				string
 	json_zipped		[]byte
@@ -37,7 +38,8 @@ type Item struct {
 	Id				int64		`json:"item_id,omitempty"`
 	Title			string		`json:"title,omitempty"`
 	Source			string 		`json:"source,omitempty"`
-	Ncomments		int			`json:"-"`
+	//Src				*Source		`json:"-"`
+	Ncomments		int			`json:"n_comm,omitempty"`
 	BestComment		*Comment		`json:"b_comm,omitempty"`
 	Url				string		`json:"img_url,omitempty"`
 	time				int64		/*`json:"-"`*/	
@@ -49,6 +51,7 @@ func NewManager() *IManager {
 	m.sortedItems = llrb.New()
 	m.itemsByTid = make(map[string]*Item)
 	m.itemsById = make(map[int64]*Item)
+	m.itemsByTitle = make(map[string]*Item)
 	m.mutex = &sync.RWMutex{}
 	return m
 }
@@ -104,10 +107,17 @@ func (m *IManager) NotifyItemId (tid string, id int64) {
 func (m *IManager) IsManaged (item *Item) bool {
 	m.mutex.RLock()	
 	defer m.mutex.RUnlock()
+	return m.isManaged(item)
+}
+
+func (m *IManager) isManaged (item *Item) bool {
 	_, ok := m.itemsByTid[item.Tid]
 	if !ok {
 		_, ok = m.itemsById[item.Id]
 	}
+	if !ok {
+		_, ok = m.itemsByTitle[item.Title]
+	}	
 	return ok
 }
 
@@ -129,13 +139,13 @@ func (m *IManager) GetItemById (id int64) (*Item, bool) {
 func (m *IManager) Insert (item *Item) bool {
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
-	_, ok := m.itemsByTid[item.Tid]
-	if ok {return false}
+	if m.isManaged(item) {return false}
 	//set timestamp partly randomly to shuffle items
 	item.time = time.Now().UnixNano()/1000000 + rand.Int63n(1000)
 	item.updateScore()
 	m.sortedItems.InsertNoReplace(item)
 	m.itemsByTid[item.Tid] = item
+	m.itemsByTitle[item.Title] = item
 	m.removeTail()
 	return true
 }
@@ -157,10 +167,7 @@ func (m *IManager) refreshJson(){
 		if count >= l {
 			return true
 		}
-		ary[count] = i.(*Item)
-		//if _, ok := m.itemsByTid[ary[count].Tid]; !ok {
-		//	log.Printf("WARNING!!!! Item %s is in the tree but not in the index!", ary[count].Tid)
-		//}		
+		ary[count] = i.(*Item)	
 		count++
 		return true
 	})
@@ -184,6 +191,7 @@ func (m *IManager) removeTail(){
 		min := m.sortedItems.DeleteMin().(*Item)
 		delete(m.itemsByTid, min.Tid)
 		delete(m.itemsById, min.Id)
+		delete(m.itemsByTitle, min.Title)
 		err := DeleteTempImage(min.Tid)
 		if err != nil {
 			log.Printf("[CRAW] Error: %v", err)

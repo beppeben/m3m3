@@ -15,7 +15,7 @@ import (
 )
 
 func init() {
-	commonHandlers := alice.New(context.ClearHandler, loggingHandler, recoverHandler)
+	commonHandlers := alice.New(context.ClearHandler, loggingHandler, recoverHandler, noCacheHandler)
 	authHandlers := commonHandlers.Append(authHandler)
 	
 	router := NewRouter()
@@ -47,6 +47,13 @@ func recoverHandler(next http.Handler) http.Handler {
 		next.ServeHTTP(w, r)
 	}
 	return http.HandlerFunc(fn)
+}
+
+func noCacheHandler(next http.Handler) http.Handler {
+  	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+      	w.Header().Add("Cache-Control", "no-cache, no-store, must-revalidate")
+		next.ServeHTTP(w, r)
+  	})
 }
 
 
