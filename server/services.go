@@ -126,6 +126,7 @@ func deployFront (w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	*/
+	
 	file, _, err := r.FormFile("bundle")
 	if err != nil {
 		fmt.Fprintf(w, "ERROR_BAD_FILE")
@@ -135,7 +136,7 @@ func deployFront (w http.ResponseWriter, r *http.Request) {
 	if err != nil {
     		fmt.Fprintf(w, "ERROR")
 		return
-	}   
+	}  
 	for _, zf := range reader.File {
     		dst, err := os.Create(GetHTTPDir() + zf.Name)
     		if err != nil {

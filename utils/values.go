@@ -17,6 +17,7 @@ func init() {
 	viper.SetConfigName("config")
 	viper.SetConfigType("toml")
 	viper.AddConfigPath("./config/")
+
 	
 	viper.SetDefault("DB_RESET", def_DB_RESET)
 	viper.SetDefault("IMG_DIR", def_IMG_DIR)

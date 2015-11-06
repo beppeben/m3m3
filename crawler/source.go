@@ -24,7 +24,6 @@ var (
 type Source struct {
 	url      		string
 	name				string
-	max_updates		int
 }
 
 
