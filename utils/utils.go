@@ -1,70 +1,63 @@
 package utils
 
 import (
-	"bufio"
-	"log"
-	"net/http"
-	"os"
-	"regexp"
-	"crypto/md5"
-	"math/rand"
-	"encoding/hex"
+	log "github.com/Sirupsen/logrus"
 	"net/smtp"
-	"io"
-	"strconv"
 	"time"
-	//"image"
+	"math/rand"
+	"crypto/md5"
+	"encoding/hex"
+	"regexp"
+	"os"
+	"bufio"
+	"net/http"
+	"io"
 	"image/jpeg"
-	"errors"
 	"github.com/nfnt/resize"
+	"errors"
+	"strconv"
+	"archive/zip"
+	"mime/multipart"
+	"path/filepath"
 )
 
-var (
-	emailVal		*regexp.Regexp
-)
 
 const letterBytes = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
 
-type User struct {
-	Name 	string
-	Pass 	string
-	Email 	string
-}
 
-type Comment struct {
-	Id			int64		`json:"id,omitempty"`
-	Item_id		int64		`json:"-"`
-	Text			string		`json:"text,omitempty"`
-	Author		string		`json:"author,omitempty"`
-	Likes		int 			`json:"likes"`
-	Time			time.Time	`json:"-"`
-}
-
-
-
-func SendEmail(toEmail string, subject string, body string) error {
-	auth := smtp.PlainAuth("", GetServiceEmail(), GetEmailPass(), GetSMTP())	
+func SendEmailOnce(toEmail string, subject string, body string) error {
+	auth := smtp.PlainAuth("", GetServiceEmail(), GetEmailPass(), GetSMTP())
 	to := []string{toEmail}
 	msg := []byte(
 		"To: " + toEmail + "\r\n" +
 		"From: " + GetServiceEmail() + "\r\n" +
 		"Subject: " + subject + "\r\n" +
-		/*
-		"Content-type: text/HTML; charset=UTF-8" +
-		"format: flowed" +
-		"Content-Transfer-Encoding: 8bit" +
-		*/
 		"\r\n" + body + "\r\n")
 	err := smtp.SendMail(GetSMTP() + ":" + GetSMTPPort(), auth, GetServiceEmail(), to, msg)
+	if err != nil {
+		log.Infof("Can't send email to %s: %v", toEmail, err)
+	}
+	
 	return err
 }
 
-func PanicOnErr(err error) {
-    if err != nil {
-        panic(err.Error())
-    }
+func SendEmail(toEmail string, subject string, body string) error {
+	retries := 4
+	var err error
+	for retries > 0 {
+		err = SendEmailOnce(toEmail, subject, body)
+		if err == nil {
+			break
+		} else {
+			retries--
+			time.Sleep(time.Second*10)
+		}
+	}
+	if err != nil {
+		log.Warnf("Can't send email to %s: %v", toEmail, err)
+	}
+	return err
 }
-
 
 func RandString(n int) string {
  	b := make([]byte, n)
@@ -74,13 +67,13 @@ func RandString(n int) string {
  	return string(b)
 }
 
-func ComputeMd5(text string) string {
+func Hash(text string) string {
 	array := md5.Sum([]byte(text))
 	return hex.EncodeToString(array[:])
 }
 
 func ValidateEmail(email string) bool {
- 	emailVal = regexp.MustCompile(`^[a-z0-9._%+\-]+@[a-z0-9.\-]+\.[a-z]{2,4}$`)
+ 	emailVal := regexp.MustCompile(`^[a-z0-9._%+\-]+@[a-z0-9.\-]+\.[a-z]{2,4}$`)
  	return emailVal.MatchString(email)
 }
 
@@ -102,7 +95,7 @@ func ReadLines(path string) ([]string, error) {
 func GetFileSize(url string, client *http.Client) int64 {
 	resp, err := client.Head(url)	
 	if err != nil {
-		//log.Printf("URL %s is not reachable", url)
+		log.Debug(err.Error())
 		return -1
 	}
 	defer resp.Body.Close()
@@ -111,12 +104,23 @@ func GetFileSize(url string, client *http.Client) int64 {
 	}
 	return -1
 }
+/*
+func Log(msg interface{}) {
+	log.Printf("%s", msg)
+}
+
+func LogAndWrite(w io.Writer, err error, msg string) {
+	if err != nil {
+		log.Printf("%s", err)
+		fmt.Fprintf(w, msg)
+		return
+	}
+}
+*/
 
 func SaveTempImage (url string, client *http.Client) (string, error) {
-	//log.Printf("Getting URL %s", url)
 	resp, err := client.Get(url)	
 	if err != nil {
-		//log.Printf("URL %s is not reachable", url)
 		return "", err
 	}
 	defer resp.Body.Close()
@@ -127,16 +131,15 @@ func SaveTempImage (url string, client *http.Client) (string, error) {
 	width := image.Bounds().Max.X - image.Bounds().Min.X
 	height:= image.Bounds().Max.Y - image.Bounds().Min.Y
 
-	if width < 500 && height < 500 || height > width {
+	if (width < 500 && height < 500) || height > width {
 		return "", errors.New("Bad image format")
 	}
 	if width > 1000 {
 		image = resize.Thumbnail(600, 600, image, resize.NearestNeighbor)
 	}	
-	hash := ComputeMd5(url)
+	hash := Hash(url)
 	file, err := os.Create(GetTempImgDir() + hash + ".jpg")
 	if err != nil {
-		log.Print("error creating file")
 		return "", err
 	}
 	defer file.Close()
@@ -164,7 +167,6 @@ func PersistTempImage (tid string, id int64) error {
 	_, err = io.Copy(dest, orig)
 	return err
 }
-
 
 func DeleteAllImages() error {
 	err := DeleteFilesInDir(GetImgDir())
@@ -196,5 +198,65 @@ func DeleteFilesInDir(dir string) error {
 func DeleteTempImage(tid string) error {
 	err := os.Remove(GetTempImgDir() + tid + ".jpg")
 	return err
+}
+
+func ExtractZipToHttpDir(file multipart.File, length int64) error {
+	r, err := zip.NewReader(file, length)
+	if err != nil {
+        return err
+    }
+	dest := GetHTTPDir()
+    os.MkdirAll(dest, 0755)
+
+    extractAndWriteFile := func(f *zip.File) error {
+        rc, err := f.Open()
+        if err != nil {
+            return err
+        }
+        defer func() {
+            if err := rc.Close(); err != nil {
+                panic(err)
+            }
+        }()
+
+        path := filepath.Join(dest, f.Name)
+
+        if f.FileInfo().IsDir() {
+            os.MkdirAll(path, f.Mode())
+        } else {
+            f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, f.Mode())
+            if err != nil {
+                return err
+            }
+            defer func() {
+                if err := f.Close(); err != nil {
+                    panic(err)
+                }
+            }()
+
+            _, err = io.Copy(f, rc)
+            if err != nil {
+                return err
+            }
+        }
+        return nil
+    }
+
+    for _, f := range r.File {
+        err := extractAndWriteFile(f)
+        if err != nil {
+            return err
+        }
+    }
+
+    return nil
+}
+
+func PositivePart (n int) int {
+	if n >= 0 {
+		return n
+	} else {
+		return 0
+	}
 }
 

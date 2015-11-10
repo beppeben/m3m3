@@ -2,34 +2,19 @@ package utils
 
 import (
 	"github.com/spf13/viper"
-	"log"
 )
 
-var (
-	def_DB_RESET			string = "no"
-	def_IMG_DIR 			string = "/var/www/m3m3/images/"
-	def_TEMPIMG_DIR 		string = "/var/www/m3m3/images/temp/"
-	def_HTTP_DIR 		string = "/var/www/m3m3/"
-)
 
 func init() {
-
 	viper.SetConfigName("config")
 	viper.SetConfigType("toml")
 	viper.AddConfigPath("./config/")
-
-	
-	viper.SetDefault("DB_RESET", def_DB_RESET)
-	viper.SetDefault("IMG_DIR", def_IMG_DIR)
-	viper.SetDefault("TEMPIMG_DIR", def_TEMPIMG_DIR)
-	viper.SetDefault("HTTP_DIR", def_HTTP_DIR)
-
 	err := viper.ReadInConfig() 
-
-	if err != nil { 
-		log.Printf("[OMG] Cannot read config file : %s", err)		
+	if err != nil {
+		panic(err.Error())
 	}
 }
+
 
 func GetServiceEmail() string {
 	return viper.GetString("EMAIL")
@@ -47,6 +32,10 @@ func GetSMTPPort() string {
 	return viper.GetString("SMTP_PORT")
 }
 
+func GetDBName() string {
+	return viper.GetString("DB_NAME")
+}
+
 func GetUserDB() string {
 	return viper.GetString("DB_USER")
 }
@@ -55,22 +44,40 @@ func GetPassDB() string {
 	return viper.GetString("DB_PASS")
 }
 
-func GetImgDir() string {
-	return viper.GetString("IMG_DIR")
-}
-
-func GetTempImgDir() string {
-	return viper.GetString("TEMPIMG_DIR")
-}
-
 func GetHTTPDir() string {
 	return viper.GetString("HTTP_DIR")
 }
 
-func GetAdmin() string {
-	return viper.GetString("ADMIN")
+func GetImgDir() string {
+	return GetHTTPDir() + "images/"
+}
+
+func GetTempImgDir() string {
+	return GetImgDir() + "temp/"
 }
 
 func ResetDB() bool {
 	return viper.GetString("DB_RESET") == "yes"
+}
+
+func GetAdminPass() string {
+	return viper.GetString("ADMIN_PASS")
+}
+
+func GetServerHost() string {
+	return viper.GetString("SERVER_HOST")
+}
+
+func GetServerPort() string {
+	return viper.GetString("SERVER_PORT")
+}
+
+func GetServerUrl() string {
+	host := GetServerHost()
+	port := GetServerPort()
+	if port == "80" {
+		return host
+	} else {
+		return host + ":" + port
+	}	
 }

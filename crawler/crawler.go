@@ -1,90 +1,214 @@
 package crawler
 
 import (
-	. "github.com/beppeben/m3m3/utils"
-	"log"
+	. "github.com/beppeben/m3m3/domain"
+	log "github.com/Sirupsen/logrus"
+	"github.com/beppeben/m3m3/utils"
 	"net/http"
 	"time"
 	"strings"
+	"sort"
+	"io/ioutil"
+	"regexp"
 )
 
 var (
-	sources   	[]Source
-	manager		*IManager
-	client    	*http.Client
-	tr        	*http.Transport
-	wait_time 	time.Duration = 1
-	c 			chan int
+	max_item_crawl 			int = 25
+	min_img_size   			int64 = 35 * 1000
+	max_img_size   			int64 = 300 * 1000
+	max_img_miss 			int = 10
+	frequency_minutes 		time.Duration = 1
+	items_per_period			int = 1
+
+	img_regx   *regexp.Regexp = regexp.MustCompile("http([^<>\"]+?)\\.(jpg|jpeg)(&quot;|\")")
+	items_regx *regexp.Regexp = regexp.MustCompile("<item>([\\S\\s]+?)</item>")
+	title_regx *regexp.Regexp = regexp.MustCompile("<title>(<!\\[CDATA\\[)?([\\S\\s]+?)(\\]\\]>)?</title>")
 )
 
-func Start_Crawler() {}
-
-func init() {
-	log.Println("[CRAW] Crawler started, updating sources...")
-	timeout := time.Duration(5 * time.Second)
-	tr = &http.Transport{}
-	client = &http.Client{Transport: tr, Timeout: timeout}
-	manager = NewManager()
-	c = make(chan int)
-	go updateSources()
+type Crawler struct {
+	feeds		[]*Feed
+	manager		*utils.IManager
+	repo			Repository
+	client    	*http.Client
+	tr        	*http.Transport
+	wait_time 	time.Duration
 }
 
-func GetItems() string {
-	return manager.GetJson()
-}
-
-func GetZippedItems() []byte {
-	return manager.GetZippedJson()
-}
-
-func GetItemByTid (tid string) (*Item, bool) {
-	return manager.GetItemByTid(tid)
-}
-
-func GetItemById (id int64) (*Item, bool) {
-	return manager.GetItemById(id)
-}
-
-func NotifyItemId (url string, id int64) {
-	manager.NotifyItemId (url, id)
-}
-
-func NotifyComment (comment *Comment) {
-	manager.NotifyComment (comment)
-}
-
-func getSourcesFromFile() {
-	lines, err := ReadLines("./config/rss.conf")
+func NewCrawler(manager *utils.IManager, repo Repository) *Crawler {
+	crawler := &Crawler{}
+	timeout := time.Duration(10 * time.Second)
+	crawler.tr = &http.Transport{}
+	crawler.client = &http.Client{Transport: crawler.tr, Timeout: timeout}
+	crawler.manager = manager
+	crawler.repo = repo
+	err := crawler.getSourcesFromFile()
 	if err != nil {
-		log.Printf("[CRAW] Couldn't read rss list: %s", err)
-		return
+		panic(err.Error())
 	}
-	sources = make([]Source, 0)
+	return crawler
+}
+
+type Repository interface {
+	GetItemByUrl(img_url string) (*Item, error) 
+}
+
+func (cr *Crawler) getSourcesFromFile() error {
+	lines, err := utils.ReadLines("./config/rss.conf")
+	if err != nil {
+		return err
+	}
+	feeds := make([]*Feed, 0)
 	for _, line := range lines {
 		parts := strings.Split(line, " --- ")
 		if len(parts) != 2 {
 			continue
 		}
-		sources = append(sources, Source{url: parts[0], name: parts[1]})
+		feeds = append(feeds, &Feed{url: parts[0], name: parts[1]})
 	}
+	cr.feeds = feeds
+	return nil
 }
 
-func updateSources() {
-	getSourcesFromFile()
+func (cr *Crawler) Start() {
+	go cr.getFeeds(0)
+	log.Infoln("Crawler started")
+}
+
+func (cr *Crawler) getFeeds(arrears int) {
+	err := cr.getSourcesFromFile()
+	if err != nil {
+		log.Warnf("%v", err)
+	}
+	threshold := int(float32(cr.manager.MaxShowItems())/float32(len(cr.feeds)) + 1)	
+	to_update := utils.PositivePart(cr.manager.MaxShowItems() - cr.manager.Count()) +
+					items_per_period + arrears
+	goal := to_update
+	sort.Sort(ByNbManaged(cr.feeds))	
+	flag := to_update <= len(cr.feeds)
+	
+	log.WithFields(log.Fields{
+			"threshold"		: threshold,
+    			"to_update"		: to_update,
+			"max_manager"	: cr.manager.MaxShowItems(),
+			"count_manager"	: cr.manager.Count(),
+			"n_feeds"		: len(cr.feeds),
+  		}).Debugln()
 	
 	//update all sources in parallel
-	for i, _ := range sources {
-		go sources[i].update(c)
+	c := make(chan int)
+	var i, total int
+	for i, _ = range cr.feeds {		
+		cand := 1
+		if !flag {
+			cand = utils.PositivePart(threshold - cr.feeds[i].nb_managed)
+			if cand > to_update {
+				cand = to_update
+			}
+		}
+		to_update -= cand
+		//go sources[i].update(c)
+		go cr.update(cr.feeds[i], cand, c)
+		if to_update <= 0 {
+			break
+		}
 	}
-	var total int
 	//wait for all the routines to return
-	for i := 0; i < len(sources); i++ {
+	for k := 0; k <= i; k++ {
 		total += <-c		
 	}
 	//this is to avoid annoying logs about unsolicited requests to idle conns
-	tr.CloseIdleConnections()
-	manager.RefreshJson()
-	//log.Printf("[CRAW] Sources updated with %d items", total)
-	time.Sleep(time.Minute * wait_time)
-	updateSources()
+	cr.tr.CloseIdleConnections()
+	cr.manager.RefreshJson()
+	log.Debugf("Crawler got %d items", total)
+	time.Sleep(time.Minute * frequency_minutes)
+	//if you crawl less than desired, you'll crawl more in the next step
+	arrears = goal - total
+	if arrears > 4 {arrears = 4}
+	cr.getFeeds(arrears)
 }
+
+func (cr *Crawler) update(f *Feed, to_update int, num chan int) {
+	var updated, up_misses, lo_misses int
+	defer func (){
+		log.WithFields(log.Fields{
+			"feed"		: f.name,
+    			"updated"	: updated,
+			"to_update"	: to_update,
+			"up_misses"	: up_misses,
+			"lo_misses"	: lo_misses,
+  		}).Debug("Updating feeds")
+		num <- updated
+	}()
+	resp, err := cr.client.Get(f.url)
+	if err != nil {
+		log.Debugf("%v", err)
+		return
+	}	
+	defer resp.Body.Close()
+	body, err := ioutil.ReadAll(resp.Body)
+	xml := string(body)
+
+	xml_items := items_regx.FindAllStringSubmatch(xml, -1)
+
+	var title string
+	var url_matcher, title_matcher [][]string
+	
+	outer:
+	for count, xml_item := range xml_items {
+		if count > max_item_crawl || updated >= to_update {
+			break
+		}
+		title_matcher = title_regx.FindAllStringSubmatch(xml_item[1], -1)
+		l := len(title_matcher)
+		if l == 0 {
+			continue
+		}
+		title = title_matcher[0][2]
+		url_matcher = img_regx.FindAllStringSubmatch(xml_item[1], -1)
+		l = len(url_matcher)
+		if l == 0 {
+			continue
+		}
+		
+		//candidate images
+		img_urls := make([]string, 0)
+	
+		//skip item if already managed
+		for i := 0; i < l; i++ {
+			img_urls = append(img_urls, "http" + url_matcher[i][1] + "." + url_matcher[i][2])
+			if cr.manager.IsManaged(&Item{Tid: utils.Hash(img_urls[i]), Title: title}) {
+				continue outer
+			} else if _, err = cr.repo.GetItemByUrl(img_urls[i]); err == nil {
+				continue outer
+			}
+	
+		}
+		
+		//retain item, if a sufficently "good" image is found
+		for i := 0; i < l; i++ {
+			size := utils.GetFileSize(img_urls[i], cr.client)
+			if size > min_img_size && size < max_img_size {
+				hash, err := utils.SaveTempImage(img_urls[i], cr.client)
+				if err != nil {
+					log.Debugf("Did not save temp image %s: %v", img_urls[i], err)
+					continue
+				}
+				cr.manager.Insert(&Item{Title: title, Tid: hash, 
+					Url: img_urls[i], Source: f.name, Src: f})
+				updated++
+				break
+			} else {
+				if size < min_img_size {
+					lo_misses++
+				} else {
+					up_misses++
+				}
+				//stop crawling source if images are too small/big
+				if up_misses + lo_misses >= max_img_miss {
+					break outer
+				}
+			}							
+		}
+	}
+}
+

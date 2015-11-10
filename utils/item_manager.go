@@ -1,25 +1,22 @@
 package utils
 
 import (
+	"github.com/beppeben/m3m3/domain"
 	"github.com/petar/GoLLRB/llrb"
 	"sync"
 	"time"
 	"math/rand"
 	"encoding/json"
-	//"fmt"
 	"bytes"
 	"compress/gzip"
 	"math"
-	"log"
+	log "github.com/Sirupsen/logrus"
 )
 
-
 var (
-	max_items 		int = 150
-	max_show			int = 100
+	max_int			int64 = 9223372036854775807
 	mill_hour		float64 = 1000*60*60
 	mill_day			float64 = mill_hour*24
-	max_int			int64 = 9223372036854775807
 )
 
 type IManager struct {
@@ -30,21 +27,11 @@ type IManager struct {
 	mutex			*sync.RWMutex
 	json				string
 	json_zipped		[]byte
+	max_items		int
+	max_show			int
 }
 
-//this corresponds to an image (a piece of news) shown in the feeds page
-type Item struct {
-	Tid	 			string		`json:"item_tid,omitempty"`
-	Id				int64		`json:"item_id,omitempty"`
-	Title			string		`json:"title,omitempty"`
-	Source			string 		`json:"source,omitempty"`
-	//Src				*Source		`json:"-"`
-	Ncomments		int			`json:"n_comm,omitempty"`
-	BestComment		*Comment		`json:"b_comm,omitempty"`
-	Url				string		`json:"img_url,omitempty"`
-	time				int64		/*`json:"-"`*/	
-	score 			int64
-}
+
 
 func NewManager() *IManager {
 	m := &IManager{}
@@ -53,23 +40,36 @@ func NewManager() *IManager {
 	m.itemsById = make(map[int64]*Item)
 	m.itemsByTitle = make(map[string]*Item)
 	m.mutex = &sync.RWMutex{}
+	m.max_items = 120
+	m.max_show	 = 100
 	return m
 }
 
-func (item Item) Less (than llrb.Item) bool {
-	it := than.(*Item)
-	return item.score < it.score
+type Item struct {
+	domain.Item
 }
 
-func (item *Item) updateScore() {
-	result := item.time + int64(math.Sqrt(float64(item.Ncomments))*mill_day/2)
+func (x Item) Less(than llrb.Item) bool {
+	return x.Score < than.(*Item).Score
+}
+
+func (item *Item) UpdateScore() {	
+	result := item.Time + int64(math.Sqrt(float64(item.Ncomments))*mill_day/2)
 	if item.BestComment != nil {
 		result += int64(math.Sqrt(float64(item.BestComment.Likes))*mill_day/2)
 	}
-	item.score = result
+	item.Score = result
 }
 
-func (m *IManager) NotifyComment (comment *Comment) {
+func (m *IManager) MaxShowItems() int {
+	return m.max_show
+}
+
+func (m *IManager) Count() int {
+	return len(m.itemsByTid)
+}
+
+func (m *IManager) NotifyComment (comment *domain.Comment) {
 	//could add a check here to see if item is managed only with a read lock
 	m.mutex.Lock()
 	defer m.mutex.Unlock()	
@@ -87,7 +87,7 @@ func (m *IManager) NotifyComment (comment *Comment) {
 	if comment.Likes == 0 {
 		item.Ncomments = item.Ncomments + 1
 	}	
-	item.updateScore()
+	item.UpdateScore()
 	m.sortedItems.InsertNoReplace(item)
 	m.refreshJson()	
 }
@@ -104,10 +104,10 @@ func (m *IManager) NotifyItemId (tid string, id int64) {
 }
 
 
-func (m *IManager) IsManaged (item *Item) bool {
+func (m *IManager) IsManaged (item *domain.Item) bool {
 	m.mutex.RLock()	
 	defer m.mutex.RUnlock()
-	return m.isManaged(item)
+	return m.isManaged(&Item{*item})
 }
 
 func (m *IManager) isManaged (item *Item) bool {
@@ -121,31 +121,33 @@ func (m *IManager) isManaged (item *Item) bool {
 	return ok
 }
 
-func (m *IManager) GetItemByTid (tid string) (*Item, bool) {
+func (m *IManager) GetItemByTid (tid string) (*domain.Item, bool) {
 	m.mutex.RLock()	
 	defer m.mutex.RUnlock()
 	item, ok := m.itemsByTid[tid]
-	return item, ok
+	return &item.Item, ok
 }
 
-func (m *IManager) GetItemById (id int64) (*Item, bool) {
+func (m *IManager) GetItemById (id int64) (*domain.Item, bool) {
 	m.mutex.RLock()	
 	defer m.mutex.RUnlock()
 	item, ok := m.itemsById[id]
-	return item, ok
+	return &item.Item, ok
 }
 
 
-func (m *IManager) Insert (item *Item) bool {
+func (m *IManager) Insert (it *domain.Item) bool {
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
+	item := &Item{*it}
 	if m.isManaged(item) {return false}
 	//set timestamp partly randomly to shuffle items
-	item.time = time.Now().UnixNano()/1000000 + rand.Int63n(1000)
-	item.updateScore()
+	item.Time = time.Now().UnixNano()/1000000 + rand.Int63n(1000)
+	item.UpdateScore()
 	m.sortedItems.InsertNoReplace(item)
 	m.itemsByTid[item.Tid] = item
 	m.itemsByTitle[item.Title] = item
+	item.Src.Increase()
 	m.removeTail()
 	return true
 }
@@ -158,12 +160,12 @@ func (m *IManager) RefreshJson(){
 
 func (m *IManager) refreshJson(){	
 	l := len(m.itemsByTid)
-	if l > max_show {
-		l = max_show
+	if l > m.max_show {
+		l = m.max_show
 	}
 	var ary = make([]*Item, l)	
 	count := 0
-	m.sortedItems.DescendLessOrEqual(&Item{score: max_int}, func(i llrb.Item) bool {
+	m.sortedItems.DescendLessOrEqual(&Item{domain.Item{Score: max_int}}, func(i llrb.Item) bool {
 		if count >= l {
 			return true
 		}
@@ -186,12 +188,13 @@ func (m *IManager) refreshJson(){
 //to be called inside a lock
 func (m *IManager) removeTail(){
 	l := len(m.itemsByTid)
-	if l <= max_items {return}	
-	for i := 0; i < l-max_items; i++ {
+	if l <= m.max_items {return}	
+	for i := 0; i < l-m.max_items; i++ {
 		min := m.sortedItems.DeleteMin().(*Item)
 		delete(m.itemsByTid, min.Tid)
 		delete(m.itemsById, min.Id)
 		delete(m.itemsByTitle, min.Title)
+		min.Src.Decrease()
 		err := DeleteTempImage(min.Tid)
 		if err != nil {
 			log.Printf("[CRAW] Error: %v", err)
