@@ -92,7 +92,7 @@ func (cr *Crawler) getFeeds(arrears int) {
 			"max_manager"	: cr.manager.MaxShowItems(),
 			"count_manager"	: cr.manager.Count(),
 			"n_feeds"		: len(cr.feeds),
-  		}).Debugln()
+  		}).Debugln("Updating feeds")
 	
 	//update all sources in parallel
 	c := make(chan int)
@@ -136,7 +136,7 @@ func (cr *Crawler) update(f *Feed, to_update int, num chan int) {
 			"to_update"	: to_update,
 			"up_misses"	: up_misses,
 			"lo_misses"	: lo_misses,
-  		}).Debug("Updating feeds")
+  		}).Debug()
 		num <- updated
 	}()
 	resp, err := cr.client.Get(f.url)
