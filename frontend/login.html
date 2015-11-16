@@ -1,0 +1,137 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<link rel="stylesheet" href="http://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/css/bootstrap.min.css">
+	<link rel="stylesheet" href="css/spinner.css" type="text/css">
+	<link rel="stylesheet" type="text/css" href="css/my_style.css">
+    <title>m3m3</title>
+</head>
+<body>
+	<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>
+	<script src="http://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/js/bootstrap.min.js"></script>
+	<script src="js/functions.js"></script>
+	<script src="js/js.cookie.min.js"></script>
+	
+    <script>	
+		jQuery(document).ready(function ($) {
+			showUserName();	
+			initMenu();
+			setResponsive();
+        });	
+		
+		
+		function scaleLayout() {
+			var parentWidth = $('.container').width();
+			$('.myform .form-wrap').width(Math.min(400, parentWidth));
+		}
+    </script>
+
+    <header>
+		<button class="hamburger">&#9776;</button>
+		<button class="cross">&#735;</button>
+	</header>
+
+	<div class="menu">
+		<ul>
+			<a href="login.html"><li>Login</li></a>
+			<a href="index.html" onclick="logout();"><li>Logout</li></a>
+		</ul>
+	</div>
+	
+	<div id="home">
+		<h2><a href="index.html">m3m3</a></h2>	
+		<p class="username"></p>
+	</div>
+	
+	<div class="container">	
+		<ul class="nav nav-pills nav-justified">
+			<li class="active"><a data-toggle="tab" href="#register">Register</a></li>
+			<li><a data-toggle="tab" href="#login">Log in</a></li>
+		</ul>
+
+		<div class="tab-content">			
+			<div id="register" class="tab-pane fade myform in active">
+				<div class="form-wrap">
+				<form role="form" action="javascript:register();" method="post" id="register-form" autocomplete="off">
+					<div class="form-group">
+						<label for="name" class="sr-only">Name</label>
+						<input type="text" name="name" id="name" class="form-control" placeholder="Name">
+					</div>
+					<div class="form-group">
+						<label for="email" class="sr-only">Email</label>
+						<input type="email" name="email" id="email" class="form-control" placeholder="Email">
+					</div>
+					<div class="form-group">
+						<label for="key" class="sr-only">Password</label>
+						<input type="password" name="pass" id="pass_first" class="form-control" placeholder="Password">
+					</div>
+					<div class="form-group">
+						<label for="key" class="sr-only">Repeat Password</label>
+						<input type="password" id="pass_second" class="form-control" placeholder="Repeat password">
+					</div>
+					<input type="submit" id="btn-login" class="btn btn-custom btn-lg btn-block" value="Register">
+				</form>
+				</div>
+				
+				<div class="response">	
+					<div id="spinner_register" class="spinner-loader myspinner" ></div>
+					<p id="text_register"></p>
+				</div>
+			</div>
+			
+			<div id="login" class="tab-pane fade myform">
+				<div class="form-wrap">
+				<form role="form" action="javascript:login();" method="post" id="login-form" autocomplete="off">
+					<div class="form-group">
+						<label for="name_email" class="sr-only">Name/Email</label>
+						<input type="text" name="name_email" id="name_email" class="form-control" placeholder="Name or Email">
+					</div>
+					<div class="form-group">
+						<label for="key" class="sr-only">Password</label>
+						<input type="password" name="pass" id="key" class="form-control" placeholder="Password">
+					</div>
+					<input type="submit" id="btn-login" class="btn btn-custom btn-lg btn-block" value="Log in">
+				</form>
+				<a href="javascript:void(0);" class="forget" data-toggle="modal" data-target=".forget-modal">Forgot your password?</a>				
+				</div>
+				
+				<div class="response">	
+					<div id="spinner_login" class="spinner-loader myspinner" ></div>
+					<p id="text_login"></p>
+				</div>
+			</div>
+		</div>	
+		
+		
+		
+	</div>
+	
+	
+	
+	<div class="modal fade forget-modal" tabindex="-1" role="dialog" aria-labelledby="myForgetModalLabel" aria-hidden="true">
+	<div class="modal-dialog modal-sm">
+		<div class="modal-content">
+			<div class="modal-header">
+				<button type="button" class="close" data-dismiss="modal">
+					<span aria-hidden="true">×</span>
+					<span class="sr-only">Close</span>
+				</button>
+				<h4 class="modal-title">Password Recovery</h4>
+			</div>
+			<div class="modal-body">
+				<p>Please enter your email address</p>
+				<input type="email" name="recovery-email" id="recovery-email" class="form-control" autocomplete="off">
+			</div>
+			<div class="modal-footer">
+				<button type="button" class="btn btn-default" data-dismiss="modal">Cancel</button>
+				<button type="button" onclick="recoverPass()" class="btn btn-custom" data-dismiss="modal">Recovery</button>
+			</div>
+		</div> <!-- /.modal-content -->
+	</div> <!-- /.modal-dialog -->
+</div> <!-- /.modal -->
+
+
+</body>
+</html>

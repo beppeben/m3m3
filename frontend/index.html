@@ -1,0 +1,106 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<meta name="referrer" content="no-referrer" />
+	<link rel="stylesheet" href="http://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/css/bootstrap.min.css">
+	<link rel="stylesheet" type="text/css" href="css/my_style.css">
+    <title>m3m3</title>
+</head>
+<body>
+	<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>
+	<script src="http://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/js/bootstrap.min.js"></script>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/masonry/3.3.2/masonry.pkgd.min.js"></script>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery.imagesloaded/3.2.0/imagesloaded.pkgd.min.js"></script>
+	<script src="js/functions.js"></script>
+	<script src="js/js.cookie.min.js"></script>
+	
+	
+    <script>	
+		
+		jQuery(document).ready(function ($) {
+			initItems();  				
+			initMenu();
+			showUserName();	
+			setResponsive();
+			
+        });	
+		
+		/*
+		function updateMenuMargins() {
+			$('.hamburger').each(function () {
+				$(this).css({
+					'margin-left': '10%'
+				});
+			});
+		}
+		*/
+		
+		function scaleLayout() {
+			var parentWidth = $('.container').width();
+			var largeitemWidth = $('.grid-item-large').width();
+			if (parentWidth <= largeitemWidth) {
+				largeitemWidth = parentWidth;
+			} else {
+				largeitemWidth = Math.min(parentWidth, 320);				
+			}
+			$('.grid-item').width(largeitemWidth/2);
+			$('.grid-item-large').width(largeitemWidth);
+			$('.image').width(largeitemWidth/2-10);
+			$('.image-large').width(largeitemWidth-10);
+			//alert(largeitemWidth-10);
+			$('.caption').css('width', largeitemWidth-10);
+			if (feed_done){
+				$('#feed-grid').masonry( 'option', { columnWidth: largeitemWidth/2 });
+				$('#feed-grid').masonry();
+			}
+			if (comments_done) {
+				$('#comments-grid').masonry( 'option', { columnWidth: largeitemWidth/2 });
+			}
+		}
+   
+    </script>
+	
+	<header>
+		<button class="hamburger">&#9776;</button>
+		<button class="cross">&#735;</button>
+	</header>
+
+	<div class="menu">
+		<ul>
+			<a href="login.html"><li>Login</li></a>
+			<a href="index.html" onclick="logout();"><li>Logout</li></a>
+		</ul>
+	</div>
+    
+	<div id="home">
+		<h2><a href="javascript:initItems();">m3m3</a></h2>	
+		<p class="username"></p>
+	</div>
+	
+
+	<div class="container mycontainer">	
+		
+		
+		<ul class="nav nav-pills nav-justified">
+			<li class="active"><a data-toggle="tab" href="#feed">Feed</a></li>
+			<li><a data-toggle="tab" href="#best">Best</a></li>
+		</ul>
+
+		<div class="tab-content">
+			<div id="feed" class="tab-pane fade in active">
+				<div id="feed-grid" class="grid"></div>
+			</div>
+			
+			
+			<div id="best" class="tab-pane fade">
+				<div id="comments-grid" class="grid"></div>
+			</div>
+
+		</div>
+	</div>
+
+
+</body>
+</html>

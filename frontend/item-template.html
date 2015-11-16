@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+	<meta property="og:type" content="article" />
+	<meta property="og:description" content="{{if .Comments}}{{with $x := index .Comments 0}}{{$x.Text}}{{end}}{{else}}Write your own comment on m3m3!{{end}}" />
+
+	<meta property="og:image" content="{{.LocalUrlWithHost}}" />
+	<meta property="og:image:width" content="600"/>
+	<meta property="og:image:height" content="400"/>
+
+    	<meta charset="utf-8">
+    	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<link rel="stylesheet" href="http://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/css/bootstrap.min.css">
+	<link rel="stylesheet" type="text/css" href="css/my_style.css">
+	<link rel="stylesheet" href="css/spinner.css" type="text/css">
+    	<title>m3m3</title>
+</head>
+<body>
+	<script>
+  		window.fbAsyncInit = function() {
+    			FB.init({
+      				appId      : '483418555153102',
+      				xfbml      : true,
+      				version    : 'v2.5'
+    			});
+  		};
+
+  		(function(d, s, id){
+     			var js, fjs = d.getElementsByTagName(s)[0];
+     			if (d.getElementById(id)) {return;}
+     			js = d.createElement(s); js.id = id;
+     			js.src = "//connect.facebook.net/en_US/sdk.js";
+     			fjs.parentNode.insertBefore(js, fjs);
+   		}(document, 'script', 'facebook-jssdk'));
+	</script>	
+	
+	<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>
+	<script src="http://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/js/bootstrap.min.js"></script>
+	<script src="js/functions.js"></script>
+	<script src="js/js.cookie.min.js"></script>
+	
+	<script>	
+		
+		jQuery(document).ready(function ($) {  				
+			initMenu();			
+			//getItemInfo();
+			showUserName();			
+			setResponsive();
+			initCommentForm();
+				
+		});
+
+		function scaleLayout() {
+			var parentWidth = $('.itemimg-container').parent().width();
+			$('.itemimg-container').width(Math.min(700, parentWidth));
+			$('.form-wrap').width(Math.min(700, parentWidth));
+			$('#comment-edit').width(Math.min(590, parentWidth-110));
+			$('.comment-container').width(Math.min(700, parentWidth));
+			$('.comment-text').width(Math.min(600, parentWidth-100));
+		}
+
+    </script>
+	
+	<header>
+		<button class="hamburger">&#9776;</button>
+		<button class="cross">&#735;</button>
+	</header>
+
+	<div class="menu">
+		<ul>
+			<a href="login.html"><li>Login</li></a>
+			<a href="index.html" onclick="logout();"><li>Logout</li></a>
+		</ul>
+	</div>
+    
+	<div id="home">
+		<h2><a href="index.html">m3m3</a></h2>	
+		<p class="username"></p>
+	</div>
+
+	<div class="container">	
+		
+		<div class="itemimg-container">
+			<img id="item-image" src={{.Item.Url}} onerror="this.onerror = null; this.src={{.LocalUrl}}"/>
+			<figcaption class="itemimg-caption">{{.Item.Title}} ({{.Item.Source}})</figcaption>
+		</div>
+		
+		
+		<div class="tab-pane fade myform commentform in">
+			<div class="form-wrap">
+				<form role="form" action="javascript:postComment('{{.Item.Id}}', '{{.Item.Tid}}');" method="post" id="comment-form" autocomplete="off">
+					<input type="submit" class="btn btn-custom " style="float: right; width: 100px" value="Post">
+					<div id="comment-edit" style="width: 590px">
+						<label for="comment" class="sr-only">Your Comment Here</label>
+						<input type="text" maxlength="100" name="comment" id="comment" class="form-control" placeholder="Your Comment Here">
+					</div>
+				</form>
+			</div>
+				
+			
+		</div>
+		
+		<div class="response" >	
+			<a id="signin_link" href="login.html">Log in to comment this picture!</a>
+			<div id="spinner_item" class="spinner-loader myspinner" ></div>
+			<p id="postcomment_result"></p>
+		</div>
+
+		
+		<div class="comment-container">
+		{{ range .Comments }}   				
+			<div class="comment">
+				<div class="like-box">
+					<span id="{{.Id}}-like">{{.Likes}}</span>
+					<a href="" onclick="addLike('{{.Id}}', '#{{.Id}}-like'); return false;"}>
+						<img class="like-img" src="media/like.png"/>
+					</a>
+				</div>
+				<div class="comment-text">
+					<span>{{.Text}} ({{.Author}})</span>
+				</div>
+			</div>
+		{{ end }}		
+		</div>
+		
+	</div>
+
+</body>
+</html>

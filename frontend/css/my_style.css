@@ -1,0 +1,290 @@
+body {
+	font-family:Arial, Verdana;
+	background-color:#fff;
+}
+
+.mycontainer {
+	padding-left: 0px;
+	padding-right: 0px;
+}
+
+.response {
+	margin-top: 20px;
+	text-align: center;
+}
+
+
+#comment_container {
+	text-align: center;
+	position: relative; 
+	top: 0px; 
+	left: 0px; 
+	width: 700px;
+    height: 50px; 
+	margin-left: auto; 
+	margin-right: auto;
+	background-color:rgba(0, 0, 0, 0.3);
+}
+
+#signin_link {
+	color: blue;
+	text-decoration: none;
+}
+
+#home {	
+	text-align: center;
+	margin-bottom: 30px;
+	margin-left: 0 auto;
+	margin-right: 0 auto;
+}
+
+#home h2 {
+	margin-top: 0;
+	margin-bottom: 5px;
+}
+
+#home a {
+	color:black;
+	text-decoration: none;
+}
+
+
+
+.nav-pills>li>a{
+	border: 1px solid #337ab7;
+}
+
+.nav-pills>li.active>a, .nav-pills>li.active>a:focus, .nav-pills>li.active>a:hover {
+	background-color: #337ab7;
+}
+
+.nav-justified {
+	width: 50%;
+	margin: 0 auto;
+}
+
+
+#signin_link:hover{
+	color:green;
+}
+
+
+.myform {
+    padding-top: 40px
+}
+.myform .form-wrap {
+    width: 400px;
+    margin: 0 auto;
+}
+.myform h1 {
+    color: #337ab7;
+    font-size: 18px;
+    text-align: center;
+    font-weight: bold;
+    padding-bottom: 20px;
+}
+.myform .form-group {
+    margin-bottom: 25px;
+}
+
+.myform .btn.btn-custom {
+    font-size: 14px;
+	margin-bottom: 20px;
+}
+.myform .forget {
+    font-size: 13px;
+	text-align: center;
+	display: block;
+}
+
+
+.btn-custom {
+    color: #fff;
+	background-color: #337ab7;
+}
+.btn-custom:hover,
+.btn-custom:focus {
+    color: #fff;
+}
+
+#spinner_register {
+	display: none;
+	margin: auto;
+}
+
+#spinner_login {
+	display: none;
+	margin: auto;
+}
+
+.grid {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.grid:after {
+  content: '';
+  display: block;
+  clear: both;
+}
+
+.grid-item {
+  width: 160px;
+  height: 120px;
+}
+
+.grid-item-large{
+  width: 320px;
+  height: 240px;
+}
+
+.image {
+	width: 150px;
+	height: 110px;
+	display: block;
+	margin: 5px;
+}
+
+.image-large {
+	width: 310px;
+	height: 230px;
+}
+
+#item-image {
+	width: 90%;
+	height: 90%;
+	display: block;
+	margin: 0 auto;
+}
+
+.tab-content {
+	margin-top: 10px;
+}
+
+header{
+	width:100%; 
+	height:40px; 
+	line-height:50px;
+	margin-top: 20px;
+}
+.hamburger{
+	position:absolute;
+	background:none;
+	line-height:45px;
+	margin-left:10%; 
+	color:#000;
+	border:0;
+	font-size:1.4em;
+	font-weight:bold;
+	cursor:pointer;
+	outline:none;
+	z-index:10000000000000;
+}
+.cross{
+	position:absolute;
+	background:none;
+	margin-left:10%;
+	color:#000;
+	border:0;
+	font-size:3em;
+	line-height:65px;
+	font-weight:bold;
+	cursor:pointer;
+	outline:none;
+	z-index:10000000000000;
+}
+.menu{
+	position:absolute;
+	z-index:1000000; 
+	font-weight:bold; 
+	font-size:0.8em; 
+	width:100px; 
+	background:#131313;  
+	position:absolute; 
+	text-align:center; 
+	margin-left:10%;
+}
+.menu ul {margin: 0; padding: 0; list-style-type: none; list-style-image: none;}
+.menu li {display: block;   padding:15px 0 15px 0; border-bottom:#1d1f20 1px solid;}
+.menu li:hover{display: block;    background:#337ab7; padding:15px 0 15px 0; border-bottom:#1d1f20 1px solid;}
+.menu ul li a { text-decoration:none;  margin: 0px; color:#fff;}
+.menu ul li a:hover {  color: #fff; text-decoration:none;}
+.menu a{text-decoration:none; color:white;}
+.menu a:hover{text-decoration:none; color:white;}
+
+.overlap-figure {
+  display: table;
+  width: 1px;
+  font-size: 12px;
+  color: white;
+}
+
+.overlap-figure .item-container { position: relative; }
+.overlap-figure img { display: block; }
+.caption {
+  position: absolute;
+  bottom: 0px;
+  padding: 10px;
+  margin: 5px;
+  width: 310px;
+  background-color: rgba(38,50,72, 0.8);
+}
+
+.itemimg-container {
+	width: 700px;
+	margin: 0 auto;
+}
+
+.itemimg-caption {
+	 text-align: center;
+	 margin-top: 10px;
+}
+
+.commentform .form-wrap  {
+	width: 700px;
+}
+
+
+
+.comment-container {
+	margin-top: 40px;
+	margin-left: auto;
+	margin-right: auto;	
+	width: 700px;
+}
+
+.comment {
+  padding: 10px;
+  margin: 5px;
+  background-color: rgba(38,50,72, 0.2);
+}
+
+.like-box {
+	background: grey; 
+	float: right; 
+
+	height: 30px;
+	color: white;
+	padding: 5px;
+	margin-top: auto;
+	margin-bottom: auto;
+	font-size: 14px;
+}
+
+.like-img {
+	float: right; 
+	height: 20px; 
+	width: 20px;
+	margin-left: 5px;
+}
+
+.comment-text {
+	width: 600px;
+	padding: 5px;
+}
+
+.myspinner {
+	font-size: 5px !important;
+}
+
+
