@@ -3,8 +3,8 @@
 
 <head>
 	<meta property="og:type" content="article" />
-	<meta property="og:description" content="{{if .Comments}}{{with $x := index .Comments 0}}{{$x.Text}}{{end}}{{else}}Write your own comment on m3m3!{{end}}" />
-
+	<meta property="og:title" content="{{if .Comments}}{{with $x := index .Comments 0}}{{$x.Text}}{{end}}{{end}}" />	
+	<meta property="og:description" content="{{if .Comments}}{{with $x := index .Comments 0}}Image commented by {{$x.Author}} on m3m3{{end}}{{else}}Write your own comment on m3m3!{{end}}" />
 	<meta property="og:image" content="{{.LocalUrlWithHost}}" />
 	<meta property="og:image:width" content="600"/>
 	<meta property="og:image:height" content="400"/>
