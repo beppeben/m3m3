@@ -29,6 +29,7 @@ type IManager struct {
 	json_zipped		[]byte
 	max_items		int
 	max_show			int
+	max_on_top		int
 }
 
 
@@ -41,7 +42,8 @@ func NewManager() *IManager {
 	m.itemsByTitle = make(map[string]*Item)
 	m.mutex = &sync.RWMutex{}
 	m.max_items = 120
-	m.max_show	 = 100
+	m.max_show = 100
+	m.max_on_top = 5
 	return m
 }
 
@@ -89,6 +91,7 @@ func (m *IManager) NotifyComment (comment *domain.Comment) {
 	}	
 	item.UpdateScore()
 	m.sortedItems.InsertNoReplace(item)
+	m.adjustScores()
 	m.refreshJson()	
 }
 
@@ -158,6 +161,32 @@ func (m *IManager) RefreshJson(){
 	m.refreshJson()
 }
 
+//sets score of (n+1)th item to the "natural" one only based on time, so it will be moved by new feeds
+func (m *IManager) adjustScores(){	
+	temp := m.max_on_top
+	var item *Item
+	m.sortedItems.DescendLessOrEqual(&Item{domain.Item{Score: max_int}}, func(i llrb.Item) bool {
+		it := i.(*Item)
+		if it.BestComment == nil {
+			return false
+		}		
+		if temp > 0 {
+			temp--
+			return true
+		} else if temp == 0 {
+			item = it
+			return true
+		} else {
+			return false
+		}
+	})
+	if item != nil {
+		m.sortedItems.Delete(item)
+		item.Score = time.Now().UnixNano()/1000000
+		m.sortedItems.InsertNoReplace(item)
+	}
+}
+
 func (m *IManager) refreshJson(){	
 	l := len(m.itemsByTid)
 	if l > m.max_show {
@@ -167,7 +196,7 @@ func (m *IManager) refreshJson(){
 	count := 0
 	m.sortedItems.DescendLessOrEqual(&Item{domain.Item{Score: max_int}}, func(i llrb.Item) bool {
 		if count >= l {
-			return true
+			return false
 		}
 		ary[count] = i.(*Item)	
 		count++

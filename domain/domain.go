@@ -2,7 +2,6 @@ package domain
 
 import (
 	"time"
-	"strconv"
 )
 
 
@@ -28,23 +27,19 @@ type Comment struct {
 	Time			time.Time	`json:"-"`
 }
 
-type ItemInfo struct {
-	Item 		*Item		`json:"item,omitempty"`
-	Comments		[]*Comment	`json:"comments,omitempty"`
-}
-
 type Source interface { 
 	Increase()
 	Decrease()
 }
 
-func (item *Item) LocalUrl() string {
-	if (item.Id != 0) {
-		return "images/" + strconv.FormatInt(item.Id, 10) + ".jpg"
-	} else {
-		return "images/temp/" + item.Tid + ".jpg"
-	}
+type ItemInfo struct {
+	Item 		*Item		`json:"item,omitempty"`
+	Comments		[]*Comment	`json:"comments,omitempty"`
 }
+
+
+
+
 
 
 

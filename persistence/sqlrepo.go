@@ -157,19 +157,34 @@ func (r *SqlRepo) GetUserByName(name string) (*web.User, error) {
 	}	
 }
 
-func (r *SqlRepo) GetCommentsByItem(itemId int64) ([]*Comment, error) {
-	st := "SELECT * FROM comments WHERE item = ? ORDER BY likes DESC"	
-	rows, err := r.h.Conn().Query(st, itemId)
-	defer rows.Close()
+//get all comments from a given item, putting the given comment on top (if available)
+func (r *SqlRepo) GetCommentsByItem(itemId int64, commentId int64) ([]*Comment, error) {
 	comments := make([]*Comment, 0)
-	for rows.Next() {
-    		var id int64
-		var likes int
-		var date time.Time
-    		var text, author string
+	var (
+		st, text, author string
+		id int64
+		likes int
+		date time.Time
+	)
+	if commentId != 0 {
+		st = "SELECT * FROM comments WHERE id = ?"	
+		err := r.h.Conn().QueryRow(st, commentId).Scan(&id, &itemId, &date, &text, &author, &likes)
+		if err != nil {
+			return nil, err
+		}
+		comments = append (comments, &Comment{Id: id, Item_id: itemId,
+				Text: text, Author: author, Time: date, Likes: likes})
+	}	
+	st = "SELECT * FROM comments WHERE item = ? ORDER BY likes DESC"	
+	rows, err := r.h.Conn().Query(st, itemId)
+	defer rows.Close()	
+	for rows.Next() {   		
     		err = rows.Scan(&id, &itemId, &date, &text, &author, &likes)
 		if err != nil {
 			return nil, err
+		}
+		if id == commentId {
+			continue
 		}
 		comments = append (comments, &Comment{Id: id, Item_id: itemId,
 				Text: text, Author: author, Time: date, Likes: likes})

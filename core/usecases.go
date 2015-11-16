@@ -12,7 +12,7 @@ type ItemRepository interface {
 	GetBestComments() ([]*Item, error)
 	GetItemById(id int64) (*Item, error)
 	InsertItem(url, title, source string) (int64, error)
-	GetCommentsByItem(item_id int64) ([]*Comment, error)
+	GetCommentsByItem(item_id int64, comment_id int64) ([]*Comment, error)
 	InsertLike(username string, comment_id int64) (*Comment, error)
 	InsertComment(comment *Comment) error	
 }
@@ -77,14 +77,15 @@ func (in *ItemInteractor) GetZippedItems() ([]byte) {
 	return in.itemManager.GetZippedJson()
 }
 
-func (in *ItemInteractor) GetItemInfo(item_tid string, item_id int64) (*ItemInfo, error, string) {
+//get item with comments list, by id or tid (optionally a comment_id to appear on top)
+func (in *ItemInteractor) GetItemInfo(item_tid string, item_id int64, comment_id int64) (*ItemInfo, error, string) {
 	item, err, msg := in.RetrieveItem(item_tid, item_id, false)
 	if err != nil {
 		return nil, err, msg
 	}
 	var comments []*Comment
 	if item.Id != 0 {		
-		comments, err = in.itemRepo.GetCommentsByItem(item.Id)
+		comments, err = in.itemRepo.GetCommentsByItem(item.Id, comment_id)
 		if err != nil {
 			return nil, err, "ERROR_DB"
 		}
