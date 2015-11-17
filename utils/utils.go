@@ -167,7 +167,7 @@ func PersistTempImage (tid string, id int64) error {
 	_, err = io.Copy(dest, orig)
 	return err
 }
-
+/*
 func DeleteAllImages() error {
 	err := DeleteFilesInDir(GetImgDir())
 	if err != nil {
@@ -176,6 +176,7 @@ func DeleteAllImages() error {
 	err = DeleteFilesInDir(GetTempImgDir())
 	return err
 }
+*/
 
 func DeleteFilesInDir(dir string) error {
 	d, err := os.Open(dir)

@@ -45,6 +45,10 @@ func NewCrawler(manager *utils.IManager, repo Repository) *Crawler {
 	if err != nil {
 		panic(err.Error())
 	}
+	err = utils.DeleteFilesInDir(utils.GetTempImgDir())
+	if err != nil {
+		panic(err.Error())
+	}
 	return crawler
 }
 
@@ -74,17 +78,17 @@ func (cr *Crawler) Start() {
 	log.Infoln("Crawler started")
 }
 
-func (cr *Crawler) getFeeds(arrears int) {
-	err := cr.getSourcesFromFile()
-	if err != nil {
-		log.Warnf("%v", err)
-	}
+func (cr *Crawler) getFeeds(arrears int) {	
 	threshold := int(float32(cr.manager.MaxShowItems())/float32(len(cr.feeds)) + 1)	
 	to_update := utils.PositivePart(cr.manager.MaxShowItems() - cr.manager.Count()) +
 					items_per_period + arrears
 	goal := to_update
 	sort.Sort(ByNbManaged(cr.feeds))	
 	flag := to_update <= len(cr.feeds)
+	
+	for _, f := range cr.feeds {
+		log.Debugf("feed %s: %d items", f.name, f.nb_managed)
+	}
 	
 	log.WithFields(log.Fields{
 			"threshold"		: threshold,
@@ -101,12 +105,15 @@ func (cr *Crawler) getFeeds(arrears int) {
 		cand := 1
 		if !flag {
 			cand = utils.PositivePart(threshold - cr.feeds[i].nb_managed)
+			if cand == 0 {
+				cand = 1
+			}
 			if cand > to_update {
 				cand = to_update
 			}
 		}
 		to_update -= cand
-		//go sources[i].update(c)
+		
 		go cr.update(cr.feeds[i], cand, c)
 		if to_update <= 0 {
 			break
@@ -123,7 +130,10 @@ func (cr *Crawler) getFeeds(arrears int) {
 	time.Sleep(time.Minute * frequency_minutes)
 	//if you crawl less than desired, you'll crawl more in the next step
 	arrears = goal - total
-	if arrears > 4 {arrears = 4}
+	if arrears > 7 {arrears = 7}
+	//if cr.manager.Count() < cr.manager.MaxShowItems() {
+	//	arrears = 0
+	//}
 	cr.getFeeds(arrears)
 }
 
@@ -193,9 +203,10 @@ func (cr *Crawler) update(f *Feed, to_update int, num chan int) {
 					log.Debugf("Did not save temp image %s: %v", img_urls[i], err)
 					continue
 				}
-				cr.manager.Insert(&Item{Title: title, Tid: hash, 
-					Url: img_urls[i], Source: f.name, Src: f})
-				updated++
+				if cr.manager.Insert(&Item{Title: title, Tid: hash, 
+						Url: img_urls[i], Source: f.name, Src: f}) {
+					updated++	
+				}				
 				break
 			} else {
 				if size < min_img_size {

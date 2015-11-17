@@ -143,7 +143,9 @@ func (m *IManager) Insert (it *domain.Item) bool {
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
 	item := &Item{*it}
-	if m.isManaged(item) {return false}
+	if m.isManaged(item) {
+		return false
+	}
 	//set timestamp partly randomly to shuffle items
 	item.Time = time.Now().UnixNano()/1000000 + rand.Int63n(1000)
 	item.UpdateScore()

@@ -34,7 +34,7 @@ func NewMySqlHandler() *MySqlHandler {
 		if err != nil {
 			panic(err.Error())
 		}
-		err = DeleteAllImages()
+		err := DeleteFilesInDir(GetImgDir())
 		if err != nil {
 			panic(err.Error())
 		}

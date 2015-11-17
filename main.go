@@ -11,6 +11,7 @@ import (
 
 func main() {
 	log.SetLevel(log.InfoLevel)
+	log.SetFormatter(&log.TextFormatter{DisableColors: true})
 	
 	db := persistence.NewMySqlHandler()
 	repo := persistence.NewRepo(db)
