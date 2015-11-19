@@ -57,7 +57,7 @@ func GetTempImgDir() string {
 }
 
 func ResetDB() bool {
-	return viper.GetString("DB_RESET") == "yes"
+	return viper.GetString("DB_RESET") == "true"
 }
 
 func GetAdminPass() string {

@@ -38,7 +38,7 @@ func NewMySqlHandler() *MySqlHandler {
 		if err != nil {
 			panic(err.Error())
 		}
-		log.Infoln("Tables created successfully")
+		log.Info("Tables created successfully")
 	}
 	
 	return &MySqlHandler{Connection: conn}

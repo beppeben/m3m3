@@ -9,6 +9,7 @@ type Item struct {
 	Tid	 			string		`json:"item_tid,omitempty"`
 	Id				int64		`json:"item_id,omitempty"`
 	Title			string		`json:"title,omitempty"`
+	Link				string		`json:"link,omitempty"`
 	Source			string 		`json:"source,omitempty"`
 	Src				Source		`json:"-"`
 	Ncomments		int			`json:"n_comm,omitempty"`

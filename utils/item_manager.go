@@ -30,6 +30,8 @@ type IManager struct {
 	max_items		int
 	max_show			int
 	max_on_top		int
+	max_comments		int
+	n_comments		int
 }
 
 
@@ -44,6 +46,7 @@ func NewManager() *IManager {
 	m.max_items = 120
 	m.max_show = 100
 	m.max_on_top = 5
+	m.max_comments = 20
 	return m
 }
 
@@ -86,11 +89,15 @@ func (m *IManager) NotifyComment (comment *domain.Comment) {
 	if prev_comm == nil || comment.Likes >= prev_comm.Likes {
 		item.BestComment = comment
 	}
+	if prev_comm == nil {
+		m.n_comments++
+	}
 	if comment.Likes == 0 {
-		item.Ncomments = item.Ncomments + 1
+		item.Ncomments++
 	}	
 	item.UpdateScore()
 	m.sortedItems.InsertNoReplace(item)
+	m.removeTail()
 	m.adjustScores()
 	m.refreshJson()	
 }
@@ -217,22 +224,45 @@ func (m *IManager) refreshJson(){
 }
 
 //to be called inside a lock
-func (m *IManager) removeTail(){
+func (m *IManager) removeTail(){	
+	//delete item with comment with least score if there are too many
+	if m.n_comments > m.max_comments {
+		var it *Item
+		m.sortedItems.AscendGreaterOrEqual(&Item{domain.Item{Score: 0}}, func(i llrb.Item) bool {
+			cand := i.(*Item)
+			if cand.BestComment != nil {
+				it = cand
+				return false
+			} 			
+			return true
+		})
+		if it != nil {
+			m.sortedItems.Delete(it)
+			m.cleanItem(it)
+		}
+	}
 	l := len(m.itemsByTid)
 	if l <= m.max_items {return}	
 	for i := 0; i < l-m.max_items; i++ {
 		min := m.sortedItems.DeleteMin().(*Item)
-		delete(m.itemsByTid, min.Tid)
-		delete(m.itemsById, min.Id)
-		delete(m.itemsByTitle, min.Title)
-		min.Src.Decrease()
-		err := DeleteTempImage(min.Tid)
-		if err != nil {
-			log.Printf("[CRAW] Error: %v", err)
-		}
+		m.cleanItem(min)
 	}
 	if (m.sortedItems.Len() != len(m.itemsByTid)){
-		panic("manager lists have different lengths!!")
+		panic("Manager lists have different lengths!!")
+	}
+}
+
+func (m *IManager) cleanItem(item *Item) {
+	delete(m.itemsByTid, item.Tid)
+	delete(m.itemsById, item.Id)
+	delete(m.itemsByTitle, item.Title)
+	item.Src.Decrease()
+	if item.BestComment != nil {
+		m.n_comments--
+	}
+	err := DeleteTempImage(item.Tid)
+	if err != nil {
+		log.Warnf("Manager Error: %v", err)
 	}
 }
 

@@ -11,7 +11,8 @@ import (
 type ItemRepository interface { 
 	GetBestComments() ([]*Item, error)
 	GetItemById(id int64) (*Item, error)
-	InsertItem(url, title, source string) (int64, error)
+	//InsertItem(url, title, source string) (int64, error)
+	InsertItem(item *Item) (int64, error)
 	GetCommentsByItem(item_id int64, comment_id int64) ([]*Comment, error)
 	InsertLike(username string, comment_id int64) (*Comment, error)
 	InsertComment(comment *Comment) error	
@@ -56,7 +57,7 @@ func (in *ItemInteractor) RetrieveItem(item_tid string, id int64, create bool) (
 			return item, nil, ""
 		}
 		//create the item in the db
-		id, err = in.itemRepo.InsertItem(item.Url, item.Title, item.Source)
+		id, err = in.itemRepo.InsertItem(item)
 		if err != nil {
 			return nil, err, "ERROR_DB"
 		}
@@ -106,15 +107,10 @@ func (in *ItemInteractor) AddComment(username string, text string, item_tid stri
 	if text == "" || (item_tid == "" && item_id == 0) {
 		return errors.New("Error: Empty fields"), "ERROR_FORMAT"
 	} 	
-	log.Info("retrieving item")
 	//create item if it does not exist
 	item, err, msg := in.RetrieveItem(item_tid, item_id, true)
 	if err != nil {
 		return err, msg
-	}
-	log.Info("item retrieved")
-	if item == nil {
-		log.Info("item is null")
 	}
 	comment := &Comment{Item_id: item.Id, Time: time.Now(), Text: text, Author: username, Likes: 0}
 	err = in.itemRepo.InsertComment(comment)

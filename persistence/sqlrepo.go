@@ -77,9 +77,10 @@ func (r *SqlRepo) InsertAccessToken (tempToken string, name string, t time.Time)
 	return err
 }
 
-func (r *SqlRepo) InsertItem (img_url, title, source string) (int64, error) {
-	st := "INSERT INTO items VALUES(?,?,?,?)"	
-	result, err := r.h.Conn().Exec(st, nil, img_url, title, source)
+
+func (r *SqlRepo) InsertItem (item *Item) (int64, error) {
+	st := "INSERT INTO items VALUES(?,?,?,?,?)"	
+	result, err := r.h.Conn().Exec(st, nil, item.Url, item.Title, item.Source, item.Link)
 	if err != nil {
 		return -1, err
 	} else {
@@ -235,24 +236,24 @@ func (r *SqlRepo) GetUserByEmail(email string) (*web.User, error) {
 }
 
 func (r *SqlRepo) GetItemByUrl(img_url string) (*Item, error) {
-	var title, source string
+	var title, source, link string
 	var id int64
 	st := "SELECT * FROM items WHERE imgurl = ?"	
-	err := r.h.Conn().QueryRow(st, img_url).Scan(&id, &img_url, &title, &source)
+	err := r.h.Conn().QueryRow(st, img_url).Scan(&id, &img_url, &title, &source, &link)
 	if err != nil {
 		return &Item{}, err
 	} else {
-		return &Item{Id: id, Title: title, Source: source, Url: img_url}, nil
+		return &Item{Id: id, Title: title, Source: source, Url: img_url, Link: link}, nil
 	}	
 }
 
 func (r *SqlRepo) GetItemById(id int64) (*Item, error) {
-	var title, img_url, source string
+	var title, img_url, source, link string
 	st := "SELECT * FROM items WHERE id = ?"	
-	err := r.h.Conn().QueryRow(st, id).Scan(&id, &img_url, &title, &source)
+	err := r.h.Conn().QueryRow(st, id).Scan(&id, &img_url, &title, &source, &link)
 	if err != nil {
 		return &Item{}, err
 	} else {
-		return &Item{Id: id, Title: title, Source: source, Url: img_url}, nil
+		return &Item{Id: id, Title: title, Source: source, Url: img_url, Link: link}, nil
 	}	
 }

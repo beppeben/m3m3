@@ -16,7 +16,7 @@ type ItemInfo struct {
 	*domain.ItemInfo
 }
 
-func (info *ItemInfo) LocalUrl() string {
+func (info *ItemInfo) LocalImgUrl() string {
 	if (info.Item.Id != 0) {
 		return "images/" + strconv.FormatInt(info.Item.Id, 10) + ".jpg"
 	} else {
@@ -24,8 +24,17 @@ func (info *ItemInfo) LocalUrl() string {
 	}
 }
 
-func (info *ItemInfo) LocalUrlWithHost() string {
-	return utils.GetServerUrl() + "/" + info.LocalUrl()
+func (info *ItemInfo) ImgUrl() string {
+	return utils.GetServerUrl() + "/" + info.LocalImgUrl()
+}
+
+func (info *ItemInfo) ItemUrl() string {
+	root := utils.GetServerUrl() + "/item.html?"
+	if (info.Item.Id != 0) {
+		return root + "item_id=" + strconv.FormatInt(info.Item.Id, 10)
+	} else {
+		return root + "item_tid=" + info.Item.Tid
+	}
 }
 
 func (handler WebserviceHandler) ItemHTML (w http.ResponseWriter, r *http.Request) {
@@ -39,7 +48,6 @@ func (handler WebserviceHandler) ItemHTML (w http.ResponseWriter, r *http.Reques
 	if err != nil {
 		panic("Bad Template: " + err.Error())
 	}
-	//info.Comments = append(info.Comments, &Comment{Text:"lala", Id:1, Author:"beppe", Likes:23})
 	t.Execute(w, info)
 }
 
@@ -58,7 +66,7 @@ func (handler WebserviceHandler) processItemRequest (w http.ResponseWriter, r *h
 		}
 	}
 	if comment_id != "" {
-		id, err = strconv.ParseInt(comment_id, 10, 64)
+		cid, err = strconv.ParseInt(comment_id, 10, 64)
 		if err != nil {
 			fmt.Fprintf(w, "ERROR_BAD_COMMENT_ID")
 			log.Infof("Bad comment id: %s", err)

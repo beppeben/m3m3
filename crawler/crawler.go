@@ -21,8 +21,9 @@ var (
 	items_per_period			int = 1
 
 	img_regx   *regexp.Regexp = regexp.MustCompile("http([^<>\"]+?)\\.(jpg|jpeg)(&quot;|\")")
-	items_regx *regexp.Regexp = regexp.MustCompile("<item>([\\S\\s]+?)</item>")
+	items_regx *regexp.Regexp = regexp.MustCompile("<item>([\\S\\s]+?)</item>")	
 	title_regx *regexp.Regexp = regexp.MustCompile("<title>(<!\\[CDATA\\[)?([\\S\\s]+?)(\\]\\]>)?</title>")
+	link_regx *regexp.Regexp = regexp.MustCompile("<link>(<!\\[CDATA\\[)?([\\S\\s]+?)(\\]\\]>)?</link>")
 )
 
 type Crawler struct {
@@ -160,8 +161,8 @@ func (cr *Crawler) update(f *Feed, to_update int, num chan int) {
 
 	xml_items := items_regx.FindAllStringSubmatch(xml, -1)
 
-	var title string
-	var url_matcher, title_matcher [][]string
+	var title, link string
+	var url_matcher, title_matcher, link_matcher [][]string
 	
 	outer:
 	for count, xml_item := range xml_items {
@@ -174,6 +175,14 @@ func (cr *Crawler) update(f *Feed, to_update int, num chan int) {
 			continue
 		}
 		title = title_matcher[0][2]
+		
+		link_matcher = link_regx.FindAllStringSubmatch(xml_item[1], -1)
+		l = len(link_matcher)
+		if l == 0 {
+			continue
+		}
+		link = link_matcher[0][2]
+		
 		url_matcher = img_regx.FindAllStringSubmatch(xml_item[1], -1)
 		l = len(url_matcher)
 		if l == 0 {
@@ -204,7 +213,7 @@ func (cr *Crawler) update(f *Feed, to_update int, num chan int) {
 					continue
 				}
 				if cr.manager.Insert(&Item{Title: title, Tid: hash, 
-						Url: img_urls[i], Source: f.name, Src: f}) {
+						Url: img_urls[i], Source: f.name, Src: f, Link: link}) {
 					updated++	
 				}				
 				break
