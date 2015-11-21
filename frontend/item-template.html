@@ -5,36 +5,18 @@
 	<meta property="og:type" content="article" />
 	<meta property="og:title" content="{{if .Comments}}{{with $x := index .Comments 0}}{{$x.Text}}{{end}}{{end}}" />	
 	<meta property="og:description" content="{{if .Comments}}{{with $x := index .Comments 0}}Image commented by {{$x.Author}} on m3m3{{end}}{{else}}Write your own comment on m3m3!{{end}}" />
-	<meta property="og:image" content="{{.LocalUrlWithHost}}" />
+	<meta property="og:image" content="{{.ImgUrl}}" />
 	<meta property="og:image:width" content="600"/>
 	<meta property="og:image:height" content="400"/>
 
-    	<meta charset="utf-8">
-    	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
 	<link rel="stylesheet" href="http://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/css/bootstrap.min.css">
 	<link rel="stylesheet" type="text/css" href="css/my_style.css">
 	<link rel="stylesheet" href="css/spinner.css" type="text/css">
     	<title>m3m3</title>
 </head>
-<body>
-	<script>
-  		window.fbAsyncInit = function() {
-    			FB.init({
-      				appId      : '483418555153102',
-      				xfbml      : true,
-      				version    : 'v2.5'
-    			});
-  		};
-
-  		(function(d, s, id){
-     			var js, fjs = d.getElementsByTagName(s)[0];
-     			if (d.getElementById(id)) {return;}
-     			js = d.createElement(s); js.id = id;
-     			js.src = "//connect.facebook.net/en_US/sdk.js";
-     			fjs.parentNode.insertBefore(js, fjs);
-   		}(document, 'script', 'facebook-jssdk'));
-	</script>	
-	
+<body>	
 	<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>
 	<script src="http://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/js/bootstrap.min.js"></script>
 	<script src="js/functions.js"></script>
@@ -82,8 +64,14 @@
 	<div class="container">	
 		
 		<div class="itemimg-container">
-			<img id="item-image" src={{.Item.Url}} onerror="this.onerror = null; this.src={{.LocalUrl}}"/>
-			<figcaption class="itemimg-caption">{{.Item.Title}} ({{.Item.Source}})</figcaption>
+			<!-- <img id="item-image" src="{{.Item.Url}}" onerror="this.onerror = null; this.src={{.LocalImgUrl}}"/> -->
+			<img id="item-image" src="{{.LocalImgUrl}}"/>
+			<figcaption class="itemimg-caption">
+				{{.Item.Title}} ({{.Item.Source}})
+				<a href="{{.Item.Link}}" target="_blank">
+					<img style="width: 20px; height: 20px" src="media/link.png"/>
+				</a>
+			</figcaption>
 		</div>
 		
 		
@@ -109,8 +97,14 @@
 
 		
 		<div class="comment-container">
-		{{ range .Comments }}   				
-			<div class="comment">
+
+		{{range .Comments}}   				
+			<div class="comment">				
+				<a style='text-decoration:none;' type="icon_link" onClick="window.open(
+					'https://www.facebook.com/dialog/share?app_id=483418555153102&display=popup&href={{$.ItemUrl}}%26comment_id={{.Id}}&redirect_uri={{$.ItemUrl}}%26comment_id={{.Id}}',
+					'sharer', 'toolbar=0,status=0,width=580,height=325');" href="javascript: void(0)">
+						<img class="fb-img" src="media/fb.png"/>
+				</a> 
 				<div class="like-box">
 					<span id="{{.Id}}-like">{{.Likes}}</span>
 					<a href="" onclick="addLike('{{.Id}}', '#{{.Id}}-like'); return false;"}>
@@ -121,7 +115,8 @@
 					<span>{{.Text}} ({{.Author}})</span>
 				</div>
 			</div>
-		{{ end }}		
+		{{end}}
+
 		</div>
 		
 	</div>

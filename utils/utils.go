@@ -158,7 +158,7 @@ func PersistTempImage (tid string, id int64) error {
 		return err
 	}
 	defer orig.Close()
-	dest_name := strconv.FormatInt(id, 10) + ".jpg"
+	dest_name := tid + "-" + strconv.FormatInt(id, 10) + ".jpg"
 	dest, err := os.Create(GetImgDir() + dest_name)
 	if err != nil {
 		return err

@@ -18,7 +18,7 @@ type ItemInfo struct {
 
 func (info *ItemInfo) LocalImgUrl() string {
 	if (info.Item.Id != 0) {
-		return "images/" + strconv.FormatInt(info.Item.Id, 10) + ".jpg"
+		return "images/" + info.Item.Tid + "-" + strconv.FormatInt(info.Item.Id, 10) + ".jpg"
 	} else {
 		return "images/temp/" + info.Item.Tid + ".jpg"
 	}
@@ -31,7 +31,7 @@ func (info *ItemInfo) ImgUrl() string {
 func (info *ItemInfo) ItemUrl() string {
 	root := utils.GetServerUrl() + "/item.html?"
 	if (info.Item.Id != 0) {
-		return root + "item_id=" + strconv.FormatInt(info.Item.Id, 10)
+		return root + "item_id=" + strconv.FormatInt(info.Item.Id, 10) + "%26item_tid=" + info.Item.Tid
 	} else {
 		return root + "item_tid=" + info.Item.Tid
 	}
@@ -42,7 +42,7 @@ func (handler WebserviceHandler) ItemHTML (w http.ResponseWriter, r *http.Reques
 	if err != nil {return}
 	if r.FormValue("item_id") == "" && info.Item.Id != 0 {
 		http.Redirect(w, r, utils.GetServerUrl() + "/item.html?item_id=" + 
-			strconv.FormatInt(info.Item.Id, 10), 301)
+			strconv.FormatInt(info.Item.Id, 10) + "&item_tid=" + info.Item.Tid, 301)
 	}
 	t, err := template.ParseFiles(utils.GetHTTPDir() + "item-template.html")
 	if err != nil {

@@ -278,6 +278,15 @@ header{
 	margin-left: 5px;
 }
 
+.fb-img {
+	float: right; 
+	height: 20px; 
+	width: 20px;
+	margin-left: 5px;
+	margin-top: 5px;
+	margin-bottom: 5px;
+}
+
 .comment-text {
 	width: 600px;
 	padding: 5px;

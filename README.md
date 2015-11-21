@@ -2,7 +2,7 @@ m3m3 is a simple web app allowing users to post comments (jokes) on current piec
 
 This is all work in progress. That's my toy project to learn Go.
 
-If you want to try it, you will need to customize the file "config.example.toml" with your own settings (mysql server address/credentials + smtp + static files folder ecc), then rename it to "config.toml". 
+If you want to try it, you will need to customize the file "config.example.toml" with your own settings (mysql server address/credentials + smtp + static files folder ecc), then rename it to "config.toml". You will need a mysql server running.
 You can also customize the file "rss.conf", which contains the addresses of the rss feeds to be used by the crawler.
 
 Then just compile m3m3.go and run the binary. 

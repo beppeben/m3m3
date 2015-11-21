@@ -5,6 +5,7 @@ import (
 	"github.com/beppeben/m3m3/core"
 	"github.com/julienschmidt/httprouter"
 	"net/http"
+	"fmt"
 	"time"
 	"strings"
 	"github.com/gorilla/context"
@@ -94,9 +95,12 @@ func wrapHandler(h http.Handler) httprouter.Handle {
 func (handler WebserviceHandler) FrontHandler(w http.ResponseWriter, r *http.Request) {
 	if (strings.HasPrefix(r.URL.Path, "/item.html")) {
 		handler.ItemHTML(w, r)
-	} else if (strings.HasPrefix(r.URL.Path, "/services/")) {
+	} else if strings.HasPrefix(r.URL.Path, "/services/") {
 		handler.mrouter.ServeHTTP(w,r)
 	} else {
+		if strings.HasPrefix(r.URL.Path, "/images/") {
+			w.Header().Add("Cache-Control", fmt.Sprintf("max-age=%d, public, must-revalidate", 31556926))
+		}		
 		handler.frouter.ServeHTTP(w, r)
 	}
 }

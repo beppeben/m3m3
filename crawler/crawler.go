@@ -14,8 +14,8 @@ import (
 
 var (
 	max_item_crawl 			int = 25
-	min_img_size   			int64 = 35 * 1000
-	max_img_size   			int64 = 300 * 1000
+	min_img_size   			int64 = 20 * 1000
+	max_img_size   			int64 = 400 * 1000
 	max_img_miss 			int = 10
 	frequency_minutes 		time.Duration = 1
 	items_per_period			int = 1

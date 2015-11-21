@@ -2,6 +2,7 @@ package persistence
 
 import (
 	. "github.com/beppeben/m3m3/domain"
+	"github.com/beppeben/m3m3/utils"
 	"github.com/beppeben/m3m3/web"
 	"database/sql"
 	"time"
@@ -198,7 +199,7 @@ func (r *SqlRepo) GetCommentsByItem(itemId int64, commentId int64) ([]*Comment, 
 }
 
 func (r *SqlRepo) GetBestComments() ([]*Item, error) {
-	st := "SELECT comments.*, items.imgurl, items.title, items.source from comments " +
+	st := "SELECT comments.*, items.imgurl, items.title, items.source, items.link from comments " +
 		"INNER JOIN items ON comments.item=items.id ORDER BY likes DESC LIMIT 100"	
 	rows, err := r.h.Conn().Query(st)
 	defer rows.Close()
@@ -207,12 +208,12 @@ func (r *SqlRepo) GetBestComments() ([]*Item, error) {
     		var item_id, comment_id int64
 		var likes int
 		var date time.Time
-    		var text, author, url, title, source string
-    		err = rows.Scan(&comment_id, &item_id, &date, &text, &author, &likes, &url, &title, &source)
+    		var text, author, url, title, source, link string
+    		err = rows.Scan(&comment_id, &item_id, &date, &text, &author, &likes, &url, &title, &source, &link)
 		if err != nil {
 			return nil, err
 		}
-		item := &Item{Id: item_id, Url: url, Title: title, Source: source}
+		item := &Item{Id: item_id, Url: url, Title: title, Source: source, Link: link, Tid: utils.Hash(url)}
 		comment := &Comment{Id: comment_id, Text: text, Author: author, Likes: likes}
 		item.BestComment = comment
 		items = append (items, item)
@@ -243,7 +244,7 @@ func (r *SqlRepo) GetItemByUrl(img_url string) (*Item, error) {
 	if err != nil {
 		return &Item{}, err
 	} else {
-		return &Item{Id: id, Title: title, Source: source, Url: img_url, Link: link}, nil
+		return &Item{Id: id, Title: title, Source: source, Url: img_url, Link: link, Tid: utils.Hash(img_url)}, nil
 	}	
 }
 
@@ -254,6 +255,6 @@ func (r *SqlRepo) GetItemById(id int64) (*Item, error) {
 	if err != nil {
 		return &Item{}, err
 	} else {
-		return &Item{Id: id, Title: title, Source: source, Url: img_url, Link: link}, nil
+		return &Item{Id: id, Title: title, Source: source, Url: img_url, Link: link, Tid: utils.Hash(img_url)}, nil
 	}	
 }
