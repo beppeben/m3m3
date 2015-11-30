@@ -6,6 +6,7 @@ import (
 	"github.com/beppeben/m3m3/web"
 	"database/sql"
 	"time"
+	"fmt"
 	"errors"
 )
 
@@ -25,12 +26,8 @@ func NewRepo(h DbHandler) *SqlRepo {
 func (r *SqlRepo) InsertComment (c *Comment) error {
 	st := "INSERT INTO comments VALUES(?,?,?,?,?,?)"
 	result, err := r.h.Conn().Exec(st, nil, c.Item_id, c.Time, c.Text, c.Author, c.Likes)
-	if err == nil {
-		id, err := result.LastInsertId()
-		if err == nil {
-			c.Id = id
-		}
-	}
+	id, err := result.LastInsertId()
+	c.Id = id
 	return err
 }
 
@@ -101,6 +98,18 @@ func (r *SqlRepo) DeleteTempToken (token string) error {
 	return err
 }
 
+func (r *SqlRepo) DeleteComment(id int64) error {
+	st := "DELETE FROM comments WHERE id = ?"	
+	_, err := r.h.Conn().Exec(st, id)
+	return err
+}
+
+func (r *SqlRepo) DeleteItem(id int64) error {
+	st := "DELETE FROM items WHERE id = ?"	
+	_, err := r.h.Conn().Exec(st, id)
+	return err
+}
+
 func (r *SqlRepo) InsertUserFromTempToken (tempToken string) (*web.User, error) {
 	var name, pass, email string
 	var t time.Time
@@ -159,20 +168,40 @@ func (r *SqlRepo) GetUserByName(name string) (*web.User, error) {
 	}	
 }
 
+func (r *SqlRepo) GetCommentById(comment_id int64) (*Comment, error) {
+	var (
+		st, text, author string
+		id, item_id int64
+		likes int
+		date time.Time
+	)
+	st = "SELECT * FROM comments WHERE id = ?"
+	err := r.h.Conn().QueryRow(st, comment_id).Scan(&id, &item_id, &date, &text, &author, &likes)
+	if err != nil {
+		return nil, err
+	}
+	return &Comment{Id: id, Item_id: item_id,
+				Text: text, Author: author, Time: date, Likes: likes}, nil
+}
+
+
 //get all comments from a given item, putting the given comment on top (if available)
 func (r *SqlRepo) GetCommentsByItem(itemId int64, commentId int64) ([]*Comment, error) {
 	comments := make([]*Comment, 0)
 	var (
 		st, text, author string
-		id int64
+		id, item_id int64
 		likes int
 		date time.Time
 	)
 	if commentId != 0 {
 		st = "SELECT * FROM comments WHERE id = ?"	
-		err := r.h.Conn().QueryRow(st, commentId).Scan(&id, &itemId, &date, &text, &author, &likes)
+		err := r.h.Conn().QueryRow(st, commentId).Scan(&id, &item_id, &date, &text, &author, &likes)
 		if err != nil {
 			return nil, err
+		}
+		if item_id != itemId {
+			return nil, fmt.Errorf("Comment %d does not belong to item %d", commentId, itemId)			
 		}
 		comments = append (comments, &Comment{Id: id, Item_id: itemId,
 				Text: text, Author: author, Time: date, Likes: likes})

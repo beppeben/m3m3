@@ -164,6 +164,19 @@ func (m *IManager) Insert (it *domain.Item) bool {
 	return true
 }
 
+func (m *IManager) Remove (it *domain.Item) bool {
+	m.mutex.Lock()
+	defer m.mutex.Unlock()
+	item := &Item{*it}
+	if !m.isManaged(item) {
+		return false
+	}
+	m.sortedItems.Delete(item)
+	m.cleanItem(item)
+	m.refreshJson()
+	return true
+}
+
 func (m *IManager) RefreshJson(){	
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
@@ -259,6 +272,7 @@ func (m *IManager) cleanItem(item *Item) {
 	item.Src.Decrease()
 	if item.BestComment != nil {
 		m.n_comments--
+		item.Ncomments--
 	}
 	err := DeleteTempImage(item.Tid)
 	if err != nil {

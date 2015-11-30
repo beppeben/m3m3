@@ -10,6 +10,7 @@ import (
 	"strings"
 	"github.com/gorilla/context"
 	"github.com/justinas/alice"
+	cache "github.com/patrickmn/go-cache"
 	log "github.com/Sirupsen/logrus"
 )
 
@@ -30,6 +31,7 @@ type WebserviceHandler struct {
 	repo 			Repository
 	frouter			*http.ServeMux
 	mrouter			*router
+	usercache		*cache.Cache
 }
 
 type router struct {
@@ -37,7 +39,7 @@ type router struct {
 }
 
 func NewWebHandler(it *core.ItemInteractor, repo Repository) *WebserviceHandler {
-	return &WebserviceHandler{itemInteractor: it, repo: repo}
+	return &WebserviceHandler{itemInteractor: it, repo: repo, usercache: cache.New(24*time.Hour, time.Hour)}
 }
 
 func (h WebserviceHandler) StartServer() {	
@@ -47,6 +49,7 @@ func (h WebserviceHandler) StartServer() {
 	h.frouter = http.NewServeMux()
 	h.frouter.Handle("/", http.FileServer(http.Dir(utils.GetHTTPDir())))
 	
+	h.mrouter.Get("/item.html", authHandlers.ThenFunc(h.ItemHTML))
 	h.mrouter.Get("/services/items", commonHandlers.ThenFunc(h.GetItems))
 	h.mrouter.Get("/services/bestComments", commonHandlers.Append(h.GzipJsonHandler).ThenFunc(h.GetBestComments))
 	h.mrouter.Post("/services/register", commonHandlers.ThenFunc(h.Register))
@@ -56,6 +59,7 @@ func (h WebserviceHandler) StartServer() {
 	h.mrouter.Get("/services/logout", authHandlers.ThenFunc(h.Logout))
 	h.mrouter.Get("/services/like", authHandlers.ThenFunc(h.PostLike))
 	h.mrouter.Post("/services/comment", authHandlers.ThenFunc(h.PostComment))
+	h.mrouter.Get("/services/deletecomment", authHandlers.ThenFunc(h.DeleteComment))
 	h.mrouter.Post("/services/deployFront", commonHandlers.Append(h.BasicAuth).ThenFunc(h.DeployFront))
 		
 	var err error
@@ -93,9 +97,16 @@ func wrapHandler(h http.Handler) httprouter.Handle {
 }
 
 func (handler WebserviceHandler) FrontHandler(w http.ResponseWriter, r *http.Request) {
-	if (strings.HasPrefix(r.URL.Path, "/item.html")) {
-		handler.ItemHTML(w, r)
-	} else if strings.HasPrefix(r.URL.Path, "/services/") {
+	
+	//if (strings.HasPrefix(r.URL.Path, "/item.html")) {
+	//	handler.ItemHTML(w, r)
+	//}
+	if strings.HasPrefix(r.URL.Path, "/services/") || strings.HasPrefix(r.URL.Path, "/item.html") {
+		_, found := handler.usercache.Get(r.RemoteAddr)
+		if (!found) {
+			log.Infof("New user: %s. Total daily users: %d", r.RemoteAddr, handler.usercache.ItemCount())
+			handler.usercache.Set(r.RemoteAddr, "", cache.DefaultExpiration)
+		}
 		handler.mrouter.ServeHTTP(w,r)
 	} else {
 		if strings.HasPrefix(r.URL.Path, "/images/") {
@@ -103,6 +114,7 @@ func (handler WebserviceHandler) FrontHandler(w http.ResponseWriter, r *http.Req
 		}		
 		handler.frouter.ServeHTTP(w, r)
 	}
+	
 }
 
 
