@@ -135,14 +135,22 @@ func (m *IManager) GetItemByTid (tid string) (*domain.Item, bool) {
 	m.mutex.RLock()	
 	defer m.mutex.RUnlock()
 	item, ok := m.itemsByTid[tid]
-	return &item.Item, ok
+	if ok {
+		return &item.Item, true
+	} else {
+		return nil, false
+	}	
 }
 
 func (m *IManager) GetItemById (id int64) (*domain.Item, bool) {
 	m.mutex.RLock()	
 	defer m.mutex.RUnlock()
 	item, ok := m.itemsById[id]
-	return &item.Item, ok
+	if ok {
+		return &item.Item, true
+	} else {
+		return nil, false
+	}
 }
 
 
@@ -173,6 +181,7 @@ func (m *IManager) Remove (it *domain.Item) bool {
 	}
 	m.sortedItems.Delete(item)
 	m.cleanItem(item)
+	//it.Ncomments = item.Ncomments
 	m.refreshJson()
 	return true
 }

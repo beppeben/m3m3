@@ -31,6 +31,23 @@ func (r *SqlRepo) InsertComment (c *Comment) error {
 	return err
 }
 
+func (r *SqlRepo) DeleteComment(comment_id int64) error {
+	_, err := r.h.Transact(func (tx *sql.Tx) (interface{}, error) {
+		st := "DELETE FROM likes WHERE comment = ?"
+		_, err := tx.Exec(st, comment_id)
+		if err != nil {			
+			panic(err.Error())
+		} 		
+		st = "DELETE FROM comments WHERE id = ?"	
+		_, err = tx.Exec(st, comment_id)
+		if err != nil {
+			panic(err.Error())
+		} 
+		return nil, err
+	})
+	return err
+}
+
 func (r *SqlRepo) InsertLike (username string, comment_id int64) (comment *Comment, err error) {
 	obj, err := r.h.Transact(func (tx *sql.Tx) (interface{}, error) {
 		var d time.Time
@@ -98,11 +115,6 @@ func (r *SqlRepo) DeleteTempToken (token string) error {
 	return err
 }
 
-func (r *SqlRepo) DeleteComment(id int64) error {
-	st := "DELETE FROM comments WHERE id = ?"	
-	_, err := r.h.Conn().Exec(st, id)
-	return err
-}
 
 func (r *SqlRepo) DeleteItem(id int64) error {
 	st := "DELETE FROM items WHERE id = ?"	

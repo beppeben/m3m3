@@ -125,6 +125,7 @@ func (in *ItemInteractor) AddComment(username string, text string, item_tid stri
 	return comment.Id, nil, ""
 }
 
+
 func (in *ItemInteractor) DeleteComment(username string, comment_id int64) (int64, error, string) {
 	comment, err := in.itemRepo.GetCommentById(comment_id)
 	if err != nil {
@@ -140,20 +141,30 @@ func (in *ItemInteractor) DeleteComment(username string, comment_id int64) (int6
 	}
 	//delete item from manager if present and showing the same comment
 	item, ok := in.itemManager.GetItemById(comment.Item_id)
-	itemdeleted := false
 	if ok && item.BestComment != nil && item.BestComment.Id == comment_id {
-		in.itemManager.Remove(item)
-		//if no comments left for the item, remove it from the db so it can reappear in the feed later on
-		if item.Ncomments == 0 {
-			err = in.itemRepo.DeleteItem(item.Id)
-			if err != nil {
-				return 0, err, "ERROR_DB"
-			}
-			itemdeleted = true
+		in.itemManager.Remove(item)		
+	}	
+	//if no comments left for the item, remove it from the db so it can reappear in the feed later on
+	comments, err := in.itemRepo.GetCommentsByItem(comment.Item_id, 0)
+	if err != nil {
+		return 0, err, "ERROR_DB"
+	}
+	if len(comments) == 0 {
+		item, err = in.itemRepo.GetItemById(comment.Item_id)
+		if err != nil {
+			return 0, err, "ERROR_DB"
 		}
-	}
-	if itemdeleted {
+		err = in.itemRepo.DeleteItem(comment.Item_id)
+		if err != nil {
+			return 0, err, "ERROR_DB"
+		}
+		err = utils.DeleteImage(item.Id, item.Tid)
+		if err != nil {
+			return 0, err, "ERROR_DB"
+		}
 		return 0, nil, ""
-	}
+	}		
 	return comment.Item_id, nil, ""
 }
+
+

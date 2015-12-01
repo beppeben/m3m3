@@ -102,10 +102,11 @@ func (handler WebserviceHandler) FrontHandler(w http.ResponseWriter, r *http.Req
 	//	handler.ItemHTML(w, r)
 	//}
 	if strings.HasPrefix(r.URL.Path, "/services/") || strings.HasPrefix(r.URL.Path, "/item.html") {
-		_, found := handler.usercache.Get(r.RemoteAddr)
+		ip := strings.Split(r.RemoteAddr,":")[0] 
+		_, found := handler.usercache.Get(ip)
 		if (!found) {
-			log.Infof("New user: %s. Total daily users: %d", r.RemoteAddr, handler.usercache.ItemCount())
-			handler.usercache.Set(r.RemoteAddr, "", cache.DefaultExpiration)
+			handler.usercache.Set(ip, "", cache.DefaultExpiration)
+			log.Infof("New user: %s. Total daily users: %d", ip, handler.usercache.ItemCount())			
 		}
 		handler.mrouter.ServeHTTP(w,r)
 	} else {

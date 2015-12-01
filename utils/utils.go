@@ -201,6 +201,11 @@ func DeleteTempImage(tid string) error {
 	return err
 }
 
+func DeleteImage(id int64, tid string) error {
+	err := os.Remove(GetImgDir() + tid + "-" + strconv.FormatInt(id, 10) + ".jpg")
+	return err
+}
+
 func ExtractZipToHttpDir(file multipart.File, length int64) error {
 	r, err := zip.NewReader(file, length)
 	if err != nil {

@@ -175,7 +175,14 @@ func (handler WebserviceHandler) PostComment (w http.ResponseWriter, r *http.Req
 		fmt.Fprintf(w, msg)
 		return
 	}
-	http.Redirect(w, r, utils.GetServerUrl() + "/item.html?item_id=" + 
-			item_id + "&comment_id=" + strconv.FormatInt(comment_id, 10), 301)
-	//fmt.Fprintf(w, "OK")
+	query := "/item.html?"
+	if item_id != "" {
+		query += "item_id=" + item_id
+	} else if item_tid != "" {
+		query += "item_tid=" + item_tid
+	}
+	query += "&comment_id=" + strconv.FormatInt(comment_id, 10)
+	//http.Redirect(w, r, utils.GetServerUrl() + query, 301)
+	//redirect manually on browser
+	fmt.Fprintf(w, utils.GetServerUrl() + query)
 }
