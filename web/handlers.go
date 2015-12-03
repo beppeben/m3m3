@@ -90,8 +90,8 @@ func (handler WebserviceHandler) AuthHandler(next http.Handler) http.Handler {
 	fn := func(w http.ResponseWriter, r *http.Request) {
 		cookie, err := r.Cookie("token")
 		if err != nil {
-			log.Infof("Token cookie not sent: %v", err)
-			http.Error(w, http.StatusText(401), 401)
+			//serve even if cookie not set
+			next.ServeHTTP(w, r)
 			return
 		}
 		token := cookie.Value		

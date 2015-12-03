@@ -14,7 +14,7 @@ import (
 
 type ItemInfo struct {
 	*domain.ItemInfo
-	fromuser 	string
+	FromUser 	string
 }
 
 func (info *ItemInfo) LocalImgUrl() string {
@@ -43,7 +43,7 @@ func (info *ItemInfo) ItemUrl() string {
 }
 
 func (handler WebserviceHandler) ItemHTML (w http.ResponseWriter, r *http.Request) {
-	username := context.Get(r, "user").(string)
+	username := context.Get(r, "user")
 	info, err := handler.processItemRequest(w, r)
 	if err != nil {return}
 	if (r.FormValue("item_id") == "" && info.Item.Id != 0) || r.FormValue("item_tid") == ""  {
@@ -54,7 +54,9 @@ func (handler WebserviceHandler) ItemHTML (w http.ResponseWriter, r *http.Reques
 	if err != nil {
 		panic("Bad Template: " + err.Error())
 	}
-	info.fromuser = username
+	if username != nil {
+		info.FromUser = username.(string)
+	}	
 	t.Execute(w, info)
 }
 
@@ -115,7 +117,14 @@ func (handler WebserviceHandler) GetItems (w http.ResponseWriter, r *http.Reques
 }
 
 func (handler WebserviceHandler) PostLike (w http.ResponseWriter, r *http.Request) {
-	username := context.Get(r, "user").(string)
+	user := context.Get(r, "user")
+	var username string
+	if user == nil {
+		http.Error(w, http.StatusText(401), 401)
+		return
+	} else {
+		username = user.(string)
+	}
 	comment_id := r.FormValue("comment_id")
 	id, err := strconv.ParseInt(comment_id, 10, 64)
 	if err != nil {
@@ -133,7 +142,14 @@ func (handler WebserviceHandler) PostLike (w http.ResponseWriter, r *http.Reques
 }
 
 func (handler WebserviceHandler) DeleteComment (w http.ResponseWriter, r *http.Request) {
-	username := context.Get(r, "user").(string)
+	user := context.Get(r, "user")
+	var username string
+	if user == nil {
+		http.Error(w, http.StatusText(401), 401)
+		return
+	} else {
+		username = user.(string)
+	}	
 	comment_id := r.FormValue("comment_id")
 	id, err := strconv.ParseInt(comment_id, 10, 64)
 	if err != nil {
