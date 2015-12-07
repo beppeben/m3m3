@@ -1,7 +1,6 @@
 package web
 
 import (
-	"github.com/beppeben/m3m3/utils"
 	"net/http"
 	"fmt"
 	log "github.com/Sirupsen/logrus"
@@ -15,7 +14,7 @@ func (handler WebserviceHandler) DeployFront (w http.ResponseWriter, r *http.Req
 		fmt.Fprintf(w, "ERROR_BAD_FILE")
 		return
 	}
-	err = utils.ExtractZipToHttpDir(file, r.ContentLength)
+	err = handler.sutils.ExtractZipToHttpDir(file, r.ContentLength)
 	if err == nil {
 		fmt.Fprintf(w, "OK")
 	} else {

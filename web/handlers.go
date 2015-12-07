@@ -1,7 +1,6 @@
 package web
 
 import (
-	"github.com/beppeben/m3m3/utils"
 	"net/http"
 	"io"
 	"github.com/gorilla/context"
@@ -44,8 +43,8 @@ func (handler WebserviceHandler) BasicAuth(next http.Handler) http.Handler {
 }
 
 
-func (handler WebserviceHandler) ValidateAdmin(username, password string) bool {
-	if username == "admin" && password == utils.GetAdminPass() {
+func (handler WebserviceHandler) ValidateAdmin(username, password string) bool {	
+	if username == "admin" && password == handler.config.GetAdminPass() {
 		return true
 	}
 	return false

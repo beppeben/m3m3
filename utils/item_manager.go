@@ -32,11 +32,15 @@ type IManager struct {
 	max_on_top		int
 	max_comments		int
 	n_comments		int
+	h 				MHelper
+}
+
+type MHelper interface {
+	DeleteTempImage(tid string) error
 }
 
 
-
-func NewManager() *IManager {
+func NewManager(helper MHelper) *IManager {
 	m := &IManager{}
 	m.sortedItems = llrb.New()
 	m.itemsByTid = make(map[string]*Item)
@@ -47,6 +51,7 @@ func NewManager() *IManager {
 	m.max_show = 100
 	m.max_on_top = 5
 	m.max_comments = 20
+	m.h = helper
 	return m
 }
 
@@ -283,7 +288,7 @@ func (m *IManager) cleanItem(item *Item) {
 		m.n_comments--
 		item.Ncomments--
 	}
-	err := DeleteTempImage(item.Tid)
+	err := m.h.DeleteTempImage(item.Tid)
 	if err != nil {
 		log.Warnf("Manager Error: %v", err)
 	}

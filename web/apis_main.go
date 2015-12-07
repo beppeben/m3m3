@@ -2,7 +2,6 @@ package web
 
 import (
 	"github.com/beppeben/m3m3/domain"
-	"github.com/beppeben/m3m3/utils"
 	"html/template"
 	"net/http"
 	"encoding/json"
@@ -15,6 +14,7 @@ import (
 type ItemInfo struct {
 	*domain.ItemInfo
 	FromUser 	string
+	BaseUrl		string
 }
 
 func (info *ItemInfo) LocalImgUrl() string {
@@ -26,15 +26,12 @@ func (info *ItemInfo) LocalImgUrl() string {
 }
 
 func (info *ItemInfo) ImgUrl() string {
-	return utils.GetServerUrl() + "/" + info.LocalImgUrl()
+	return info.BaseUrl + "/" + info.LocalImgUrl()
 }
 
-func (info *ItemInfo) BaseUrl() string {
-	return utils.GetServerUrl()
-}
 
 func (info *ItemInfo) ItemUrl() string {
-	root := utils.GetServerUrl() + "/item.html?"
+	root := info.BaseUrl + "/item.html?"
 	if (info.Item.Id != 0) {
 		return root + "item_id=" + strconv.FormatInt(info.Item.Id, 10) + "%26item_tid=" + info.Item.Tid
 	} else {
@@ -47,13 +44,14 @@ func (handler WebserviceHandler) ItemHTML (w http.ResponseWriter, r *http.Reques
 	info, err := handler.processItemRequest(w, r)
 	if err != nil {return}
 	if (r.FormValue("item_id") == "" && info.Item.Id != 0) || r.FormValue("item_tid") == ""  {
-		http.Redirect(w, r, utils.GetServerUrl() + "/item.html?item_id=" + 
+		http.Redirect(w, r, handler.config.GetServerUrl() + "/item.html?item_id=" + 
 			strconv.FormatInt(info.Item.Id, 10) + "&item_tid=" + info.Item.Tid, 301)
 	}
-	t, err := template.ParseFiles(utils.GetHTTPDir() + "item-template.html")
+	t, err := template.ParseFiles(handler.config.GetHTTPDir() + "item-template.html")
 	if err != nil {
 		panic("Bad Template: " + err.Error())
 	}
+	info.BaseUrl = handler.config.GetServerUrl()
 	if username != nil {
 		info.FromUser = username.(string)
 	}	
@@ -164,9 +162,9 @@ func (handler WebserviceHandler) DeleteComment (w http.ResponseWriter, r *http.R
 		return
 	}
 	if item_id != 0 {
-		http.Redirect(w, r, utils.GetServerUrl() + "/item.html?item_id=" + strconv.FormatInt(item_id, 10), 301)
+		http.Redirect(w, r, handler.config.GetServerUrl() + "/item.html?item_id=" + strconv.FormatInt(item_id, 10), 301)
 	} else {
-		http.Redirect(w, r, utils.GetServerUrl(), 301)
+		http.Redirect(w, r, handler.config.GetServerUrl(), 301)
 	}
 }
 
@@ -198,7 +196,6 @@ func (handler WebserviceHandler) PostComment (w http.ResponseWriter, r *http.Req
 		query += "item_tid=" + item_tid
 	}
 	query += "&comment_id=" + strconv.FormatInt(comment_id, 10)
-	//http.Redirect(w, r, utils.GetServerUrl() + query, 301)
 	//redirect manually on browser
-	fmt.Fprintf(w, utils.GetServerUrl() + query)
+	fmt.Fprintf(w, handler.config.GetServerUrl() + query)
 }

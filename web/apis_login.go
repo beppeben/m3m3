@@ -1,7 +1,6 @@
 package web
 
 import (
-	"github.com/beppeben/m3m3/utils"
 	"net/http"
 	"github.com/gorilla/context"
 	"fmt"
@@ -43,7 +42,7 @@ func (handler WebserviceHandler) ConfirmEmail (w http.ResponseWriter, r *http.Re
 	}
 	log.Infof("User %s confirmed!", name)
 	handler.setCookies(name, w)
-	http.Redirect(w, r, utils.GetServerUrl(), 301)
+	http.Redirect(w, r, handler.config.GetServerUrl(), 301)
 }
 
 func (handler WebserviceHandler) Register (w http.ResponseWriter, r *http.Request) {
@@ -58,9 +57,9 @@ func (handler WebserviceHandler) Register (w http.ResponseWriter, r *http.Reques
 	}
 	fmt.Fprintf(w, "OK")
 	go func() {
-		url := utils.GetServerUrl() + 
+		url := handler.config.GetServerUrl() + 
 			"/services/confirm?token=" + temptoken
-		err = utils.SendEmail(email, "Welcome to m3m3", "To confirm your email address, " +
+		err = handler.eutils.SendEmail(email, "Welcome to m3m3", "To confirm your email address, " +
 			"please click on the following link:\r\n" + url)
 		if err != nil {
 			handler.repo.DeleteTempToken(temptoken)

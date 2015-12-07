@@ -21,14 +21,20 @@ type ItemRepository interface {
 	InsertComment(comment *Comment) error	
 }
 
+type SysUtils interface {
+	PersistTempImage(item_tid string, id int64) error
+	DeleteImage(item_id int64, item_tid string) error
+}
+
 
 type ItemInteractor struct { 
 	itemRepo 		ItemRepository 
 	itemManager 		*utils.IManager
+	utils			SysUtils
 }
 
-func NewItemInteractor(repo ItemRepository, manager *utils.IManager) *ItemInteractor {
-	return &ItemInteractor{itemRepo: repo, itemManager: manager}
+func NewItemInteractor(repo ItemRepository, manager *utils.IManager, u SysUtils) *ItemInteractor {
+	return &ItemInteractor{itemRepo: repo, itemManager: manager, utils: u}
 }
 
 
@@ -66,7 +72,7 @@ func (in *ItemInteractor) RetrieveItem(item_tid string, id int64, create bool) (
 		}
 		//notify the item manager about the new item id
 		in.itemManager.NotifyItemId(item_tid, id)
-		err = utils.PersistTempImage(item_tid, id)
+		err = in.utils.PersistTempImage(item_tid, id)
 		if err != nil {
 			return nil, err, "ERROR_DB"
 		}
@@ -158,7 +164,7 @@ func (in *ItemInteractor) DeleteComment(username string, comment_id int64) (int6
 		if err != nil {
 			return 0, err, "ERROR_DB"
 		}
-		err = utils.DeleteImage(item.Id, item.Tid)
+		err = in.utils.DeleteImage(item.Id, item.Tid)
 		if err != nil {
 			return 0, err, "ERROR_DB"
 		}

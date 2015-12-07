@@ -10,6 +10,7 @@ import (
 	"strings"
 	"github.com/gorilla/context"
 	"github.com/justinas/alice"
+	"mime/multipart"
 	cache "github.com/patrickmn/go-cache"
 	log "github.com/Sirupsen/logrus"
 )
@@ -25,6 +26,21 @@ type Repository interface {
 	DeleteTempToken(token string) error
 }
 
+type ServerConfig interface {
+	GetServerUrl()	string
+	GetHTTPDir()		string
+	GetAdminPass()	string
+	GetServerPort()	string
+}
+
+type EmailUtils interface {
+	SendEmail(email, title, text string) error
+}
+
+type SysUtils interface {
+	ExtractZipToHttpDir(file multipart.File, length int64) error
+}
+
 
 type WebserviceHandler struct { 
 	itemInteractor	*core.ItemInteractor
@@ -32,14 +48,19 @@ type WebserviceHandler struct {
 	frouter			*http.ServeMux
 	mrouter			*router
 	usercache		*cache.Cache
+	config			ServerConfig
+	eutils 			EmailUtils
+	sutils 			SysUtils
 }
 
 type router struct {
 	*httprouter.Router
 }
 
-func NewWebHandler(it *core.ItemInteractor, repo Repository) *WebserviceHandler {
-	return &WebserviceHandler{itemInteractor: it, repo: repo, usercache: cache.New(24*time.Hour, time.Hour)}
+func NewWebHandler(it *core.ItemInteractor, repo Repository, c ServerConfig, 
+		e EmailUtils, s SysUtils) *WebserviceHandler {
+	return &WebserviceHandler{itemInteractor: it, repo: repo, usercache: cache.New(24*time.Hour, time.Hour),
+			config: c, eutils: e, sutils: s}
 }
 
 func (h WebserviceHandler) StartServer() {	
@@ -47,8 +68,8 @@ func (h WebserviceHandler) StartServer() {
 	authHandlers := commonHandlers.Append(h.AuthHandler)
 	h.mrouter = NewRouter()
 	h.frouter = http.NewServeMux()
-	h.frouter.Handle("/", http.FileServer(http.Dir(utils.GetHTTPDir())))
-	
+	h.frouter.Handle("/", http.FileServer(http.Dir(h.config.GetHTTPDir())))
+		
 	h.mrouter.Get("/item.html", authHandlers.ThenFunc(h.ItemHTML))
 	h.mrouter.Get("/services/items", commonHandlers.ThenFunc(h.GetItems))
 	h.mrouter.Get("/services/bestComments", commonHandlers.Append(h.GzipJsonHandler).ThenFunc(h.GetBestComments))
@@ -67,8 +88,8 @@ func (h WebserviceHandler) StartServer() {
 	r := http.NewServeMux()
 	r.HandleFunc("/", h.FrontHandler)
 	go func() {
-		log.Infof("Server launched on port %s", utils.GetServerPort())	
-    		err = http.ListenAndServe(":" + utils.GetServerPort(), r)		
+		log.Infof("Server launched on port %s", h.config.GetServerPort())	
+    		err = http.ListenAndServe(":" + h.config.GetServerPort(), r)		
 		if err != nil {
 			panic(err.Error())
 		}		
@@ -98,10 +119,9 @@ func wrapHandler(h http.Handler) httprouter.Handle {
 
 func (handler WebserviceHandler) FrontHandler(w http.ResponseWriter, r *http.Request) {
 	
-	//if (strings.HasPrefix(r.URL.Path, "/item.html")) {
-	//	handler.ItemHTML(w, r)
-	//}
-	if strings.HasPrefix(r.URL.Path, "/services/") || strings.HasPrefix(r.URL.Path, "/item.html") {
+	if strings.HasPrefix(r.URL.Path, "/item.html") {
+		handler.mrouter.ServeHTTP(w,r)
+	} else if strings.HasPrefix(r.URL.Path, "/services/") {
 		ip := strings.Split(r.RemoteAddr,":")[0] 
 		_, found := handler.usercache.Get(ip)
 		if (!found) {

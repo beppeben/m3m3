@@ -6,6 +6,7 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/beppeben/m3m3/utils"
 	"testing"
+	"github.com/spf13/viper"
 )
 
 type FakeRepo int
@@ -14,15 +15,26 @@ func (r FakeRepo) GetItemByUrl(img_url string) (*Item, error) {
 	return nil, errors.New("no such item")
 }
 
+
+
 func TestUpdateFeed(t *testing.T) {
 	log.SetLevel(log.DebugLevel)
 	log.SetFormatter(&log.TextFormatter{DisableColors: true})
 	var repo FakeRepo
-	manager := utils.NewManager()
-	cr := NewCrawler(manager, repo)
+	v := viper.New()
+	v.Set("HTTP_DIR", "/var/www/m3m3/")
+	config := utils.NewCustomAppConfig(v)
+	sysutils := utils.NewSysUtils(config)
+	manager := utils.NewManager(sysutils)
+	cr := newCrawlerNoSources(manager, repo, sysutils)
 	
-	u := "http://www.lifehack.org/feed"
+	u := "http://feeds.feedburner.com/DamnLOL"
 	feed := &Feed{url: u, name: "test feed"}
 	c := make(chan int)
-	cr.update(feed, 10, c)
+	go cr.update(feed, 10, c)
+	updated := <-c
+	if updated < 4 {
+		t.Error("Too few images for this feed")
+	}
 }
+

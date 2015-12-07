@@ -13,16 +13,20 @@ func main() {
 	log.SetLevel(log.InfoLevel)
 	log.SetFormatter(&log.TextFormatter{DisableColors: true})
 	
-	db := persistence.NewMySqlHandler()
+	config := utils.NewAppConfig()
+	sysutils := utils.NewSysUtils(config)
+	emailutils := utils.NewEmailUtils(config)
+	
+	db := persistence.NewMySqlHandler(config, sysutils)
 	repo := persistence.NewRepo(db)
 	
-	manager := utils.NewManager()
+	manager := utils.NewManager(sysutils)
 	
-	crawler := crawler.NewCrawler(manager, repo)
+	crawler := crawler.NewCrawler(manager, repo, sysutils)
 	crawler.Start()
 	
-	interactor := core.NewItemInteractor(repo, manager)
-	webhandler := web.NewWebHandler(interactor, repo)
+	interactor := core.NewItemInteractor(repo, manager, sysutils)
+	webhandler := web.NewWebHandler(interactor, repo, config, emailutils, sysutils)
 	webhandler.StartServer()
 	
 	select{}

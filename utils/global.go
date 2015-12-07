@@ -2,8 +2,6 @@ package utils
 
 import (
 	log "github.com/Sirupsen/logrus"
-	"net/smtp"
-	"time"
 	"math/rand"
 	"crypto/md5"
 	"encoding/hex"
@@ -13,6 +11,7 @@ import (
 	"net/http"
 	"io"
 	"image/jpeg"
+	"image"
 	"github.com/nfnt/resize"
 	"errors"
 	"strconv"
@@ -21,42 +20,14 @@ import (
 	"path/filepath"
 )
 
-
 const letterBytes = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
 
-
-func SendEmailOnce(toEmail string, subject string, body string) error {
-	auth := smtp.PlainAuth("", GetServiceEmail(), GetEmailPass(), GetSMTP())
-	to := []string{toEmail}
-	msg := []byte(
-		"To: " + toEmail + "\r\n" +
-		"From: " + GetServiceEmail() + "\r\n" +
-		"Subject: " + subject + "\r\n" +
-		"\r\n" + body + "\r\n")
-	err := smtp.SendMail(GetSMTP() + ":" + GetSMTPPort(), auth, GetServiceEmail(), to, msg)
-	if err != nil {
-		log.Infof("Can't send email to %s: %v", toEmail, err)
+func PositivePart (n int) int {
+	if n >= 0 {
+		return n
+	} else {
+		return 0
 	}
-	
-	return err
-}
-
-func SendEmail(toEmail string, subject string, body string) error {
-	retries := 4
-	var err error
-	for retries > 0 {
-		err = SendEmailOnce(toEmail, subject, body)
-		if err == nil {
-			break
-		} else {
-			retries--
-			time.Sleep(time.Second*10)
-		}
-	}
-	if err != nil {
-		log.Warnf("Can't send email to %s: %v", toEmail, err)
-	}
-	return err
 }
 
 func RandString(n int) string {
@@ -104,41 +75,41 @@ func GetFileSize(url string, client *http.Client) int64 {
 	}
 	return -1
 }
-/*
-func Log(msg interface{}) {
-	log.Printf("%s", msg)
-}
 
-func LogAndWrite(w io.Writer, err error, msg string) {
-	if err != nil {
-		log.Printf("%s", err)
-		fmt.Fprintf(w, msg)
-		return
-	}
-}
-*/
-
-func SaveTempImage (url string, client *http.Client) (string, error) {
-	resp, err := client.Get(url)	
-	if err != nil {
-		return "", err
-	}
-	defer resp.Body.Close()
-	image, err := jpeg.Decode(resp.Body)
-	if err != nil {
-		return "", err
-	}
+func FilterResizeImage (image image.Image) (image.Image, error) {
 	width := image.Bounds().Max.X - image.Bounds().Min.X
 	height:= image.Bounds().Max.Y - image.Bounds().Min.Y
-
-	if (width < 500 && height < 500) || height > width {
-		return "", errors.New("Bad image format")
+	if (width < 300 && height < 300) || height > width*13/10 {
+		return image, errors.New("Bad image format")
 	}
 	if width > 1000 {
 		image = resize.Thumbnail(600, 600, image, resize.NearestNeighbor)
 	}	
+	return image, nil
+}
+
+func GetJpegFromUrl (url string, client *http.Client) (image.Image, error) {
+	var result image.Image
+	resp, err := client.Get(url)	
+	if err != nil {
+		return result, err
+	}
+	defer resp.Body.Close()
+	return jpeg.Decode(resp.Body)	
+}
+
+
+func SaveTempImage (url string, client *http.Client, dir string) (string, error) {
+	image, err := GetJpegFromUrl(url, client)
+	if err != nil {
+		return "", err
+	}
+	image, err = FilterResizeImage(image)
+	if err != nil {
+		return "", err
+	}
 	hash := Hash(url)
-	file, err := os.Create(GetTempImgDir() + hash + ".jpg")
+	file, err := os.Create(dir + hash + ".jpg")
 	if err != nil {
 		return "", err
 	}
@@ -148,18 +119,18 @@ func SaveTempImage (url string, client *http.Client) (string, error) {
 	return hash, err
 }
 
-func PersistTempImage (tid string, id int64) error {
+func PersistTempImage (tid string, id int64, tempdir string, dir string) error {
 	if (tid == "" || id == 0) {
 		return errors.New("Error persisting image, empty names")
 	}
 	orig_name := tid + ".jpg"
-	orig, err := os.Open(GetTempImgDir() + orig_name)
+	orig, err := os.Open(tempdir + orig_name)
 	if err != nil {
 		return err
 	}
 	defer orig.Close()
 	dest_name := tid + "-" + strconv.FormatInt(id, 10) + ".jpg"
-	dest, err := os.Create(GetImgDir() + dest_name)
+	dest, err := os.Create(dir + dest_name)
 	if err != nil {
 		return err
 	}
@@ -167,16 +138,6 @@ func PersistTempImage (tid string, id int64) error {
 	_, err = io.Copy(dest, orig)
 	return err
 }
-/*
-func DeleteAllImages() error {
-	err := DeleteFilesInDir(GetImgDir())
-	if err != nil {
-		return err
-	}
-	err = DeleteFilesInDir(GetTempImgDir())
-	return err
-}
-*/
 
 func DeleteFilesInDir(dir string) error {
 	d, err := os.Open(dir)
@@ -196,22 +157,11 @@ func DeleteFilesInDir(dir string) error {
 	return err
 }
 
-func DeleteTempImage(tid string) error {
-	err := os.Remove(GetTempImgDir() + tid + ".jpg")
-	return err
-}
-
-func DeleteImage(id int64, tid string) error {
-	err := os.Remove(GetImgDir() + tid + "-" + strconv.FormatInt(id, 10) + ".jpg")
-	return err
-}
-
-func ExtractZipToHttpDir(file multipart.File, length int64) error {
+func ExtractZipToDir(file multipart.File, length int64, dest string) error {
 	r, err := zip.NewReader(file, length)
 	if err != nil {
         return err
     }
-	dest := GetHTTPDir()
     os.MkdirAll(dest, 0755)
 
     extractAndWriteFile := func(f *zip.File) error {
@@ -257,12 +207,3 @@ func ExtractZipToHttpDir(file multipart.File, length int64) error {
 
     return nil
 }
-
-func PositivePart (n int) int {
-	if n >= 0 {
-		return n
-	} else {
-		return 0
-	}
-}
-

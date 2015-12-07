@@ -1,21 +1,34 @@
 package persistence
 
 import (
-	. "github.com/beppeben/m3m3/utils"
 	"database/sql"
 	log "github.com/Sirupsen/logrus"
 	_ "github.com/go-sql-driver/mysql"
 	"fmt"
 )
 
+type MySqlConfig interface {
+	GetUserDB() 	string
+	GetPassDB() 	string
+	GetDBName() 	string
+	ResetDB()	bool
+}
+
+type SysUtils interface {
+	DeleteImages() error
+	GetDropStatements() ([]string, error)
+	GetCreateStatements() ([]string, error)
+}
+
 type MySqlHandler struct { 
-	Connection *sql.DB 
+	Connection 	*sql.DB 
+	utils		SysUtils
 }
 
 
-func NewMySqlHandler() *MySqlHandler { 
-	conn, err := sql.Open("mysql", GetUserDB() + ":" + 
-		GetPassDB() + "@/" + GetDBName() + "?parseTime=true") 
+func NewMySqlHandler(c MySqlConfig, u SysUtils) *MySqlHandler { 
+	conn, err := sql.Open("mysql", c.GetUserDB() + ":" + 
+		c.GetPassDB() + "@/" + c.GetDBName() + "?parseTime=true") 
 	if err != nil {
 		panic(err.Error())
 	}
@@ -25,52 +38,46 @@ func NewMySqlHandler() *MySqlHandler {
 	} else {
 		log.Infoln("Established connection with database")
 	}
-	if (ResetDB()){
-		err = dropTables(conn)
-		if err != nil {
-			panic(err.Error())
-		}	
-		err = createTables(conn)	
+	if (c.ResetDB()){
+		stmts, err := u.GetDropStatements()
 		if err != nil {
 			panic(err.Error())
 		}
-		err := DeleteFilesInDir(GetImgDir())
+		dropTables(conn, stmts)
+		stmts, err = u.GetCreateStatements()
+		if err != nil {
+			panic(err.Error())
+		}
+		err = createTables(conn, stmts)	
+		if err != nil {
+			panic(err.Error())
+		}
+		err = u.DeleteImages()
 		if err != nil {
 			panic(err.Error())
 		}
 		log.Info("Tables created successfully")
 	}
 	
-	return &MySqlHandler{Connection: conn}
+	return &MySqlHandler{Connection: conn, utils: u}
 }
 
-func dropTables(conn *sql.DB) error{
-	stmts, err := ReadLines("./config/drop.sql")
-	if err != nil {
-		return err
-	} else {
-		for i, _ := range stmts {
-			_, err = conn.Exec(stmts[i])
-			if err != nil {
-				log.Info(err.Error())
-			}				
-		}
-	}	
-	return nil
+func dropTables(conn *sql.DB, stmts []string) {
+	for i, _ := range stmts {
+		_, err := conn.Exec(stmts[i])
+		if err != nil {
+			log.Info(err.Error())
+		}				
+	}
 }
 
-func createTables(conn *sql.DB) error{
-	stmts, err := ReadLines("./config/create.sql")
-	if err != nil {
-		return err
-	} else {
-		for i, _ := range stmts {
-			_, err = conn.Exec(stmts[i])
-			if err != nil {
-				return err
-			}				
-		}
-	}	
+func createTables(conn *sql.DB, stmts []string) error{
+	for i, _ := range stmts {
+		_, err := conn.Exec(stmts[i])
+		if err != nil {
+			return err
+		}				
+	}
 	return nil
 }
 
