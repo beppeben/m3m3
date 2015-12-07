@@ -110,7 +110,7 @@ function addItemLayout(item, element) {
 									+ "<span id=\"" + item.b_comm.id + extra + "\">" + item.b_comm.likes + "</span>"
 									+ "<a href=\"\" onclick=\"addLike('" + item.b_comm.id + "', '" + like_id + "'); return false;\"><img class=\"like-img\" src=\"media/like.png\"/></a>" +	
 								"</div>" +
-								"<div style=\"width:230px;\">" + item.b_comm.text + " (" + item.b_comm.author + ")" +
+								"<div style=\"width:220px;\">" + item.b_comm.text + " (" + item.b_comm.author + ")" +
 								"</div>" +								
 							"</div>"
 						"</figcaption>" +
@@ -217,19 +217,23 @@ function postComment(id, tid) {
 	$.ajax({
 		type: "POST",
 		url: host + "services/comment",
-		data: "comment=" + $("#comment").val() + "&" + getItemQuery(id, tid),
+		data: "comment=" + $("#comment").val() + "&" + getItemQuery(id, tid),	
+		dataType: "json",	
 		success: function(data){
 			$("#spinner_item").hide();
+			$("#postcomment_result").html("Thank you for posting!");
+			window.location.replace(data);
+
+			/*
 			if (data == "OK"){
-				//getItemInfo();	
-				//window.location.reload(true);
 				window.location.href = window.location.href;			
 				$("#comment").val('');
 				$("#postcomment_result").html("Thank you for posting!");	
 			} else {
 				$("#postcomment_result").html(data);	
-			}		
-		},
+			}	
+			*/	
+		},		
 		error: function(XMLHttpRequest, textStatus, errorThrown) {
 			$("#spinner_item").hide();			
 			if (XMLHttpRequest.status == 401) {

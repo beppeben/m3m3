@@ -217,19 +217,22 @@ function postComment(id, tid) {
 	$.ajax({
 		type: "POST",
 		url: host + "services/comment",
-		data: "comment=" + $("#comment").val() + "&" + getItemQuery(id, tid),
+		data: "comment=" + $("#comment").val() + "&" + getItemQuery(id, tid),	
 		success: function(data){
 			$("#spinner_item").hide();
+			$("#postcomment_result").html("Thank you for posting!");
+			window.location.replace(data);
+
+			/*
 			if (data == "OK"){
-				//getItemInfo();	
-				//window.location.reload(true);
 				window.location.href = window.location.href;			
 				$("#comment").val('');
 				$("#postcomment_result").html("Thank you for posting!");	
 			} else {
 				$("#postcomment_result").html(data);	
-			}		
-		},
+			}	
+			*/	
+		},		
 		error: function(XMLHttpRequest, textStatus, errorThrown) {
 			$("#spinner_item").hide();			
 			if (XMLHttpRequest.status == 401) {
