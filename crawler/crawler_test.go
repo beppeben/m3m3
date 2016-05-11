@@ -1,12 +1,12 @@
 package crawler
 
 import (
-	. "github.com/beppeben/m3m3/domain"
 	"errors"
 	log "github.com/Sirupsen/logrus"
+	. "github.com/beppeben/m3m3/domain"
 	"github.com/beppeben/m3m3/utils"
-	"testing"
 	"github.com/spf13/viper"
+	"testing"
 )
 
 type FakeRepo int
@@ -14,8 +14,6 @@ type FakeRepo int
 func (r FakeRepo) GetItemByUrl(img_url string) (*Item, error) {
 	return nil, errors.New("no such item")
 }
-
-
 
 func TestUpdateFeed(t *testing.T) {
 	log.SetLevel(log.DebugLevel)
@@ -27,7 +25,7 @@ func TestUpdateFeed(t *testing.T) {
 	sysutils := utils.NewSysUtils(config)
 	manager := utils.NewManager(sysutils)
 	cr := newCrawlerNoSources(manager, repo, sysutils)
-	
+
 	u := "http://feeds.feedburner.com/DamnLOL"
 	feed := &Feed{url: u, name: "test feed"}
 	c := make(chan int)
@@ -37,4 +35,3 @@ func TestUpdateFeed(t *testing.T) {
 		t.Error("Too few images for this feed")
 	}
 }
-

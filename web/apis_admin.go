@@ -1,13 +1,12 @@
 package web
 
 import (
-	"net/http"
 	"fmt"
 	log "github.com/Sirupsen/logrus"
+	"net/http"
 )
 
-
-func (handler WebserviceHandler) DeployFront (w http.ResponseWriter, r *http.Request) {
+func (handler WebserviceHandler) DeployFront(w http.ResponseWriter, r *http.Request) {
 	file, _, err := r.FormFile("bundle")
 	if err != nil {
 		log.Warnf("%s", err)

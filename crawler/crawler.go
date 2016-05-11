@@ -1,50 +1,50 @@
 package crawler
 
 import (
-	. "github.com/beppeben/m3m3/domain"
 	log "github.com/Sirupsen/logrus"
+	. "github.com/beppeben/m3m3/domain"
 	"github.com/beppeben/m3m3/utils"
-	"net/http"
-	"time"
-	"strings"
-	"sort"
-	"io/ioutil"
-	"regexp"
 	"html"
+	"io/ioutil"
+	"net/http"
+	"regexp"
+	"sort"
+	"strings"
+	"time"
 )
 
 var (
-	max_item_crawl 			int = 60
-	min_img_size   			int64 = 20 * 1000
-	max_img_size   			int64 = 400 * 1000
-	max_img_miss 			int = 60
-	frequency_minutes 		time.Duration = 1
-	items_per_period			int = 1
+	max_item_crawl    int           = 60
+	min_img_size      int64         = 20 * 1000
+	max_img_size      int64         = 400 * 1000
+	max_img_miss      int           = 60
+	frequency_minutes time.Duration = 1
+	items_per_period  int           = 1
 
 	img_regx   *regexp.Regexp = regexp.MustCompile("http([^<>\"]+?)\\.(jpg|jpeg)(&quot;|\")")
-	items_regx *regexp.Regexp = regexp.MustCompile("<item>([\\S\\s]+?)</item>")	
+	items_regx *regexp.Regexp = regexp.MustCompile("<item>([\\S\\s]+?)</item>")
 	title_regx *regexp.Regexp = regexp.MustCompile("<title>(<!\\[CDATA\\[)?([\\S\\s]+?)(\\]\\]>)?</title>")
-	link_regx *regexp.Regexp = regexp.MustCompile("<link>(<!\\[CDATA\\[)?([\\S\\s]+?)(\\]\\]>)?</link>")
+	link_regx  *regexp.Regexp = regexp.MustCompile("<link>(<!\\[CDATA\\[)?([\\S\\s]+?)(\\]\\]>)?</link>")
 )
 
 type SysUtils interface {
-	SaveTempImage (url string, client *http.Client) (string, error)
+	SaveTempImage(url string, client *http.Client) (string, error)
 	DeleteTempImages() error
 	GetRSSDefs() ([]string, error)
 }
 
 type Repository interface {
-	GetItemByUrl(img_url string) (*Item, error) 
+	GetItemByUrl(img_url string) (*Item, error)
 }
 
 type Crawler struct {
-	feeds		[]*Feed
-	manager		*utils.IManager
-	repo			Repository
-	client    	*http.Client
-	tr        	*http.Transport
-	wait_time 	time.Duration
-	sutils 		SysUtils
+	feeds     []*Feed
+	manager   *utils.IManager
+	repo      Repository
+	client    *http.Client
+	tr        *http.Transport
+	wait_time time.Duration
+	sutils    SysUtils
 }
 
 func NewCrawler(manager *utils.IManager, repo Repository, sutils SysUtils) *Crawler {
@@ -80,8 +80,6 @@ func newCrawler(manager *utils.IManager, repo Repository, sutils SysUtils) *Craw
 	return crawler
 }
 
-
-
 func (cr *Crawler) getSourcesFromFile(lines []string) error {
 	feeds := make([]*Feed, 0)
 	for _, line := range lines {
@@ -100,30 +98,30 @@ func (cr *Crawler) Start() {
 	log.Infoln("Crawler started")
 }
 
-func (cr *Crawler) getFeeds(arrears int) {	
-	threshold := int(float32(cr.manager.MaxShowItems())/float32(len(cr.feeds)) + 1)	
-	to_update := utils.PositivePart(cr.manager.MaxShowItems() - cr.manager.Count()) +
-					items_per_period + arrears
+func (cr *Crawler) getFeeds(arrears int) {
+	threshold := int(float32(cr.manager.MaxShowItems())/float32(len(cr.feeds)) + 1)
+	to_update := utils.PositivePart(cr.manager.MaxShowItems()-cr.manager.Count()) +
+		items_per_period + arrears
 	goal := to_update
-	sort.Sort(ByNbManaged(cr.feeds))	
+	sort.Sort(ByNbManaged(cr.feeds))
 	flag := to_update <= len(cr.feeds)
-	
+
 	for _, f := range cr.feeds {
 		log.Debugf("feed %s: %d items", f.name, f.nb_managed)
 	}
-	
+
 	log.WithFields(log.Fields{
-			"threshold"		: threshold,
-    			"to_update"		: to_update,
-			"max_manager"	: cr.manager.MaxShowItems(),
-			"count_manager"	: cr.manager.Count(),
-			"n_feeds"		: len(cr.feeds),
-  		}).Debugln("Updating feeds")
-	
+		"threshold":     threshold,
+		"to_update":     to_update,
+		"max_manager":   cr.manager.MaxShowItems(),
+		"count_manager": cr.manager.Count(),
+		"n_feeds":       len(cr.feeds),
+	}).Debugln("Updating feeds")
+
 	//update all sources in parallel
 	c := make(chan int)
 	var i, total int
-	for i, _ = range cr.feeds {		
+	for i, _ = range cr.feeds {
 		cand := 1
 		if !flag {
 			cand = utils.PositivePart(threshold - cr.feeds[i].nb_managed)
@@ -135,7 +133,7 @@ func (cr *Crawler) getFeeds(arrears int) {
 			}
 		}
 		to_update -= cand
-		
+
 		go cr.update(cr.feeds[i], cand, c)
 		if to_update <= 0 {
 			break
@@ -143,7 +141,7 @@ func (cr *Crawler) getFeeds(arrears int) {
 	}
 	//wait for all the routines to return
 	for k := 0; k <= i; k++ {
-		total += <-c		
+		total += <-c
 	}
 	//this is to avoid annoying logs about unsolicited requests to idle conns
 	cr.tr.CloseIdleConnections()
@@ -152,7 +150,9 @@ func (cr *Crawler) getFeeds(arrears int) {
 	time.Sleep(time.Minute * frequency_minutes)
 	//if you crawl less than desired, you'll crawl more in the next step
 	arrears = goal - total
-	if arrears > 7 {arrears = 7}
+	if arrears > 7 {
+		arrears = 7
+	}
 	//if cr.manager.Count() < cr.manager.MaxShowItems() {
 	//	arrears = 0
 	//}
@@ -161,21 +161,21 @@ func (cr *Crawler) getFeeds(arrears int) {
 
 func (cr *Crawler) update(f *Feed, to_update int, num chan int) {
 	var updated, up_misses, lo_misses int
-	defer func (){
+	defer func() {
 		log.WithFields(log.Fields{
-			"feed"		: f.name,
-    			"updated"	: updated,
-			"to_update"	: to_update,
-			"up_misses"	: up_misses,
-			"lo_misses"	: lo_misses,
-  		}).Debug()
+			"feed":      f.name,
+			"updated":   updated,
+			"to_update": to_update,
+			"up_misses": up_misses,
+			"lo_misses": lo_misses,
+		}).Debug()
 		num <- updated
 	}()
 	resp, err := cr.client.Get(f.url)
 	if err != nil {
 		log.Debugf("%v", err)
 		return
-	}	
+	}
 	defer resp.Body.Close()
 	body, err := ioutil.ReadAll(resp.Body)
 	xml := string(body)
@@ -184,8 +184,8 @@ func (cr *Crawler) update(f *Feed, to_update int, num chan int) {
 
 	var title, link string
 	var url_matcher, title_matcher, link_matcher [][]string
-	
-	outer:
+
+outer:
 	for count, xml_item := range xml_items {
 		if count > max_item_crawl || updated >= to_update {
 			break
@@ -198,7 +198,7 @@ func (cr *Crawler) update(f *Feed, to_update int, num chan int) {
 			continue
 		}
 		title = title_matcher[0][2]
-		
+
 		link_matcher = link_regx.FindAllStringSubmatch(unesc, -1)
 		l = len(link_matcher)
 		if l == 0 {
@@ -206,28 +206,28 @@ func (cr *Crawler) update(f *Feed, to_update int, num chan int) {
 			continue
 		}
 		link = link_matcher[0][2]
-		
+
 		url_matcher = img_regx.FindAllStringSubmatch(unesc, -1)
 		l = len(url_matcher)
 		if l == 0 {
 			log.Debugf("Unmatched image url in %s", unesc)
 			continue
 		}
-		
+
 		//candidate images
 		img_urls := make([]string, 0)
-	
+
 		//skip item if already managed
 		for i := 0; i < l; i++ {
-			img_urls = append(img_urls, "http" + url_matcher[i][1] + "." + url_matcher[i][2])
+			img_urls = append(img_urls, "http"+url_matcher[i][1]+"."+url_matcher[i][2])
 			if cr.manager.IsManaged(&Item{Tid: utils.Hash(img_urls[i]), Title: title}) {
 				continue outer
 			} else if _, err = cr.repo.GetItemByUrl(img_urls[i]); err == nil {
 				continue outer
 			}
-	
+
 		}
-		
+
 		//retain item, if a sufficently "good" image is found
 		for i := 0; i < l; i++ {
 			size := utils.GetFileSize(img_urls[i], cr.client)
@@ -237,11 +237,11 @@ func (cr *Crawler) update(f *Feed, to_update int, num chan int) {
 					log.Debugf("Did not save temp image %s: %v", img_urls[i], err)
 					continue
 				}
-				if cr.manager.Insert(&Item{Title: title, Tid: hash, 
-						Url: img_urls[i], Source: f.name, Src: f, Link: link}) {
+				if cr.manager.Insert(&Item{Title: title, Tid: hash,
+					Url: img_urls[i], Source: f.name, Src: f, Link: link}) {
 					log.Debugf("Inserted image %s", img_urls[i])
-					updated++	
-				}				
+					updated++
+				}
 				break
 			} else {
 				if size < min_img_size {
@@ -252,11 +252,10 @@ func (cr *Crawler) update(f *Feed, to_update int, num chan int) {
 					up_misses++
 				}
 				//stop crawling source if images are too small/big
-				if up_misses + lo_misses >= max_img_miss {
+				if up_misses+lo_misses >= max_img_miss {
 					break outer
 				}
-			}							
+			}
 		}
 	}
 }
-

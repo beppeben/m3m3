@@ -1,44 +1,43 @@
 package utils
 
 import (
-	"github.com/beppeben/m3m3/domain"
-	"github.com/petar/GoLLRB/llrb"
-	"sync"
-	"time"
-	"math/rand"
-	"encoding/json"
 	"bytes"
 	"compress/gzip"
-	"math"
+	"encoding/json"
 	log "github.com/Sirupsen/logrus"
+	"github.com/beppeben/m3m3/domain"
+	"github.com/petar/GoLLRB/llrb"
+	"math"
+	"math/rand"
+	"sync"
+	"time"
 )
 
 var (
-	max_int			int64 = 9223372036854775807
-	mill_hour		float64 = 1000*60*60
-	mill_day			float64 = mill_hour*24
+	max_int   int64   = 9223372036854775807
+	mill_hour float64 = 1000 * 60 * 60
+	mill_day  float64 = mill_hour * 24
 )
 
 type IManager struct {
-	sortedItems		*llrb.LLRB
-	itemsByTid		map[string]*Item
-	itemsById		map[int64]*Item
-	itemsByTitle		map[string]*Item
-	mutex			*sync.RWMutex
-	json				string
-	json_zipped		[]byte
-	max_items		int
-	max_show			int
-	max_on_top		int
-	max_comments		int
-	n_comments		int
-	h 				MHelper
+	sortedItems  *llrb.LLRB
+	itemsByTid   map[string]*Item
+	itemsById    map[int64]*Item
+	itemsByTitle map[string]*Item
+	mutex        *sync.RWMutex
+	json         string
+	json_zipped  []byte
+	max_items    int
+	max_show     int
+	max_on_top   int
+	max_comments int
+	n_comments   int
+	h            MHelper
 }
 
 type MHelper interface {
 	DeleteTempImage(tid string) error
 }
-
 
 func NewManager(helper MHelper) *IManager {
 	m := &IManager{}
@@ -63,10 +62,10 @@ func (x Item) Less(than llrb.Item) bool {
 	return x.Score < than.(*Item).Score
 }
 
-func (item *Item) UpdateScore() {	
+func (item *Item) UpdateScore() {
 	result := item.Time + int64(math.Sqrt(float64(item.Ncomments))*mill_day/2)
 	if item.BestComment != nil {
-		result += int64(math.Sqrt(float64(item.BestComment.Likes))*mill_day/2)
+		result += int64(math.Sqrt(float64(item.BestComment.Likes)) * mill_day / 2)
 	}
 	item.Score = result
 }
@@ -79,10 +78,10 @@ func (m *IManager) Count() int {
 	return len(m.itemsByTid)
 }
 
-func (m *IManager) NotifyComment (comment *domain.Comment) {
+func (m *IManager) NotifyComment(comment *domain.Comment) {
 	//could add a check here to see if item is managed only with a read lock
 	m.mutex.Lock()
-	defer m.mutex.Unlock()	
+	defer m.mutex.Unlock()
 	item, ok := m.itemsById[comment.Item_id]
 	if !ok {
 		//the item is no longer managed, so don't bother updating the list
@@ -99,16 +98,16 @@ func (m *IManager) NotifyComment (comment *domain.Comment) {
 	}
 	if comment.Likes == 0 {
 		item.Ncomments++
-	}	
+	}
 	item.UpdateScore()
 	m.sortedItems.InsertNoReplace(item)
 	m.removeTail()
 	m.adjustScores()
-	m.refreshJson()	
+	m.refreshJson()
 }
 
-func (m *IManager) NotifyItemId (tid string, id int64) {
-	m.mutex.Lock()	
+func (m *IManager) NotifyItemId(tid string, id int64) {
+	m.mutex.Lock()
 	defer m.mutex.Unlock()
 	item, ok := m.itemsByTid[tid]
 	if !ok {
@@ -118,37 +117,36 @@ func (m *IManager) NotifyItemId (tid string, id int64) {
 	m.itemsById[id] = item
 }
 
-
-func (m *IManager) IsManaged (item *domain.Item) bool {
-	m.mutex.RLock()	
+func (m *IManager) IsManaged(item *domain.Item) bool {
+	m.mutex.RLock()
 	defer m.mutex.RUnlock()
 	return m.isManaged(&Item{*item})
 }
 
-func (m *IManager) isManaged (item *Item) bool {
+func (m *IManager) isManaged(item *Item) bool {
 	_, ok := m.itemsByTid[item.Tid]
 	if !ok {
 		_, ok = m.itemsById[item.Id]
 	}
 	if !ok {
 		_, ok = m.itemsByTitle[item.Title]
-	}	
+	}
 	return ok
 }
 
-func (m *IManager) GetItemByTid (tid string) (*domain.Item, bool) {
-	m.mutex.RLock()	
+func (m *IManager) GetItemByTid(tid string) (*domain.Item, bool) {
+	m.mutex.RLock()
 	defer m.mutex.RUnlock()
 	item, ok := m.itemsByTid[tid]
 	if ok {
 		return &item.Item, true
 	} else {
 		return nil, false
-	}	
+	}
 }
 
-func (m *IManager) GetItemById (id int64) (*domain.Item, bool) {
-	m.mutex.RLock()	
+func (m *IManager) GetItemById(id int64) (*domain.Item, bool) {
+	m.mutex.RLock()
 	defer m.mutex.RUnlock()
 	item, ok := m.itemsById[id]
 	if ok {
@@ -158,8 +156,7 @@ func (m *IManager) GetItemById (id int64) (*domain.Item, bool) {
 	}
 }
 
-
-func (m *IManager) Insert (it *domain.Item) bool {
+func (m *IManager) Insert(it *domain.Item) bool {
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
 	item := &Item{*it}
@@ -177,7 +174,7 @@ func (m *IManager) Insert (it *domain.Item) bool {
 	return true
 }
 
-func (m *IManager) Remove (it *domain.Item) bool {
+func (m *IManager) Remove(it *domain.Item) bool {
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
 	item := &Item{*it}
@@ -191,21 +188,21 @@ func (m *IManager) Remove (it *domain.Item) bool {
 	return true
 }
 
-func (m *IManager) RefreshJson(){	
+func (m *IManager) RefreshJson() {
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
 	m.refreshJson()
 }
 
 //sets score of (n+1)th item to the "natural" one only based on time, so it will be moved by new feeds
-func (m *IManager) adjustScores(){	
+func (m *IManager) adjustScores() {
 	temp := m.max_on_top
 	var item *Item
 	m.sortedItems.DescendLessOrEqual(&Item{domain.Item{Score: max_int}}, func(i llrb.Item) bool {
 		it := i.(*Item)
 		if it.BestComment == nil {
 			return false
-		}		
+		}
 		if temp > 0 {
 			temp--
 			return true
@@ -218,30 +215,30 @@ func (m *IManager) adjustScores(){
 	})
 	if item != nil {
 		m.sortedItems.Delete(item)
-		item.Score = time.Now().UnixNano()/1000000
+		item.Score = time.Now().UnixNano() / 1000000
 		m.sortedItems.InsertNoReplace(item)
 	}
 }
 
-func (m *IManager) refreshJson(){	
+func (m *IManager) refreshJson() {
 	l := len(m.itemsByTid)
 	if l > m.max_show {
 		l = m.max_show
 	}
-	var ary = make([]*Item, l)	
+	var ary = make([]*Item, l)
 	count := 0
 	m.sortedItems.DescendLessOrEqual(&Item{domain.Item{Score: max_int}}, func(i llrb.Item) bool {
 		if count >= l {
 			return false
 		}
-		ary[count] = i.(*Item)	
+		ary[count] = i.(*Item)
 		count++
 		return true
 	})
 	b, err := json.Marshal(ary)
-    if err != nil {
-        return
-    }
+	if err != nil {
+		return
+	}
 	m.json = string(b)
 	buf := new(bytes.Buffer)
 	w := gzip.NewWriter(buf)
@@ -251,7 +248,7 @@ func (m *IManager) refreshJson(){
 }
 
 //to be called inside a lock
-func (m *IManager) removeTail(){	
+func (m *IManager) removeTail() {
 	//delete item with comment with least score if there are too many
 	if m.n_comments > m.max_comments {
 		var it *Item
@@ -260,7 +257,7 @@ func (m *IManager) removeTail(){
 			if cand.BestComment != nil {
 				it = cand
 				return false
-			} 			
+			}
 			return true
 		})
 		if it != nil {
@@ -269,12 +266,14 @@ func (m *IManager) removeTail(){
 		}
 	}
 	l := len(m.itemsByTid)
-	if l <= m.max_items {return}	
+	if l <= m.max_items {
+		return
+	}
 	for i := 0; i < l-m.max_items; i++ {
 		min := m.sortedItems.DeleteMin().(*Item)
 		m.cleanItem(min)
 	}
-	if (m.sortedItems.Len() != len(m.itemsByTid)){
+	if m.sortedItems.Len() != len(m.itemsByTid) {
 		panic("Manager lists have different lengths!!")
 	}
 }
@@ -294,13 +293,13 @@ func (m *IManager) cleanItem(item *Item) {
 	}
 }
 
-func (m *IManager) GetJson() string{
+func (m *IManager) GetJson() string {
 	m.mutex.RLock()
 	defer m.mutex.RUnlock()
 	return m.json
 }
 
-func (m *IManager) GetZippedJson() []byte{
+func (m *IManager) GetZippedJson() []byte {
 	m.mutex.RLock()
 	defer m.mutex.RUnlock()
 	return m.json_zipped

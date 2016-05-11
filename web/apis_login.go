@@ -1,14 +1,13 @@
 package web
 
 import (
-	"net/http"
-	"github.com/gorilla/context"
 	"fmt"
 	log "github.com/Sirupsen/logrus"
+	"github.com/gorilla/context"
+	"net/http"
 )
 
-
-func (handler WebserviceHandler) Login (w http.ResponseWriter, r *http.Request) {
+func (handler WebserviceHandler) Login(w http.ResponseWriter, r *http.Request) {
 	nameOrMail := r.PostFormValue("name_email")
 	pass := r.PostFormValue("pass")
 	name, err, msg := handler.ILogin(nameOrMail, pass)
@@ -21,7 +20,7 @@ func (handler WebserviceHandler) Login (w http.ResponseWriter, r *http.Request) 
 	fmt.Fprintf(w, "OK")
 }
 
-func (handler WebserviceHandler) Logout (w http.ResponseWriter, r *http.Request) {
+func (handler WebserviceHandler) Logout(w http.ResponseWriter, r *http.Request) {
 	token := context.Get(r, "token")
 	err, msg := handler.ILogout(token.(string))
 	if err != nil {
@@ -32,7 +31,7 @@ func (handler WebserviceHandler) Logout (w http.ResponseWriter, r *http.Request)
 	fmt.Fprintf(w, "OK")
 }
 
-func (handler WebserviceHandler) ConfirmEmail (w http.ResponseWriter, r *http.Request) {
+func (handler WebserviceHandler) ConfirmEmail(w http.ResponseWriter, r *http.Request) {
 	token := r.FormValue("token")
 	name, err, msg := handler.IConfirmEmail(token)
 	if err != nil {
@@ -45,7 +44,7 @@ func (handler WebserviceHandler) ConfirmEmail (w http.ResponseWriter, r *http.Re
 	http.Redirect(w, r, handler.config.GetServerUrl(), 301)
 }
 
-func (handler WebserviceHandler) Register (w http.ResponseWriter, r *http.Request) {
+func (handler WebserviceHandler) Register(w http.ResponseWriter, r *http.Request) {
 	name := r.PostFormValue("name")
 	pass := r.PostFormValue("pass")
 	email := r.PostFormValue("email")
@@ -57,10 +56,10 @@ func (handler WebserviceHandler) Register (w http.ResponseWriter, r *http.Reques
 	}
 	fmt.Fprintf(w, "OK")
 	go func() {
-		url := handler.config.GetServerUrl() + 
+		url := handler.config.GetServerUrl() +
 			"/services/confirm?token=" + temptoken
-		err = handler.eutils.SendEmail(email, "Welcome to m3m3", "To confirm your email address, " +
-			"please click on the following link:\r\n" + url)
+		err = handler.eutils.SendEmail(email, "Welcome to m3m3", "To confirm your email address, "+
+			"please click on the following link:\r\n"+url)
 		if err != nil {
 			handler.repo.DeleteTempToken(temptoken)
 		}

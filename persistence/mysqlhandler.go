@@ -2,16 +2,16 @@ package persistence
 
 import (
 	"database/sql"
+	"fmt"
 	log "github.com/Sirupsen/logrus"
 	_ "github.com/go-sql-driver/mysql"
-	"fmt"
 )
 
 type MySqlConfig interface {
-	GetUserDB() 	string
-	GetPassDB() 	string
-	GetDBName() 	string
-	ResetDB()	bool
+	GetUserDB() string
+	GetPassDB() string
+	GetDBName() string
+	ResetDB() bool
 }
 
 type SysUtils interface {
@@ -20,15 +20,14 @@ type SysUtils interface {
 	GetCreateStatements() ([]string, error)
 }
 
-type MySqlHandler struct { 
-	Connection 	*sql.DB 
-	utils		SysUtils
+type MySqlHandler struct {
+	Connection *sql.DB
+	utils      SysUtils
 }
 
-
-func NewMySqlHandler(c MySqlConfig, u SysUtils) *MySqlHandler { 
-	conn, err := sql.Open("mysql", c.GetUserDB() + ":" + 
-		c.GetPassDB() + "@/" + c.GetDBName() + "?parseTime=true") 
+func NewMySqlHandler(c MySqlConfig, u SysUtils) *MySqlHandler {
+	conn, err := sql.Open("mysql", c.GetUserDB()+":"+
+		c.GetPassDB()+"@/"+c.GetDBName()+"?parseTime=true")
 	if err != nil {
 		panic(err.Error())
 	}
@@ -38,7 +37,7 @@ func NewMySqlHandler(c MySqlConfig, u SysUtils) *MySqlHandler {
 	} else {
 		log.Infoln("Established connection with database")
 	}
-	if (c.ResetDB()){
+	if c.ResetDB() {
 		stmts, err := u.GetDropStatements()
 		if err != nil {
 			panic(err.Error())
@@ -48,7 +47,7 @@ func NewMySqlHandler(c MySqlConfig, u SysUtils) *MySqlHandler {
 		if err != nil {
 			panic(err.Error())
 		}
-		err = createTables(conn, stmts)	
+		err = createTables(conn, stmts)
 		if err != nil {
 			panic(err.Error())
 		}
@@ -58,7 +57,7 @@ func NewMySqlHandler(c MySqlConfig, u SysUtils) *MySqlHandler {
 		}
 		log.Info("Tables created successfully")
 	}
-	
+
 	return &MySqlHandler{Connection: conn, utils: u}
 }
 
@@ -67,44 +66,43 @@ func dropTables(conn *sql.DB, stmts []string) {
 		_, err := conn.Exec(stmts[i])
 		if err != nil {
 			log.Info(err.Error())
-		}				
+		}
 	}
 }
 
-func createTables(conn *sql.DB, stmts []string) error{
+func createTables(conn *sql.DB, stmts []string) error {
 	for i, _ := range stmts {
 		_, err := conn.Exec(stmts[i])
 		if err != nil {
 			return err
-		}				
+		}
 	}
 	return nil
 }
 
-
-func (handler *MySqlHandler) Conn() *sql.DB { 
+func (handler *MySqlHandler) Conn() *sql.DB {
 	return handler.Connection
 }
 
-func (handler *MySqlHandler) Transact(txFunc func(*sql.Tx) (interface{}, error)) (obj interface{}, err error) {    
+func (handler *MySqlHandler) Transact(txFunc func(*sql.Tx) (interface{}, error)) (obj interface{}, err error) {
 	tx, err := handler.Connection.Begin()
-    if err != nil {
-        return
-    }
-    defer func() {
-        if p := recover(); p != nil {
-            switch p := p.(type) {
-            case error:
-                err = p
-            default:
-                err = fmt.Errorf("%s", p)
-            }
-        }
-        if err != nil {
-            tx.Rollback()
-            return
-        }
-        err = tx.Commit()
-    }()
-    return txFunc(tx)
+	if err != nil {
+		return
+	}
+	defer func() {
+		if p := recover(); p != nil {
+			switch p := p.(type) {
+			case error:
+				err = p
+			default:
+				err = fmt.Errorf("%s", p)
+			}
+		}
+		if err != nil {
+			tx.Rollback()
+			return
+		}
+		err = tx.Commit()
+	}()
+	return txFunc(tx)
 }

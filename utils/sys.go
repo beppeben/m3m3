@@ -1,26 +1,23 @@
 package utils
 
 import (
-	"os"
-	"net/http"
-	"strconv"
 	"mime/multipart"
+	"net/http"
+	"os"
+	"strconv"
 )
 
-
-
 type SysConfig interface {
-	GetTempImgDir()		string
-	GetImgDir()			string
-	GetHTTPDir()			string
-	GetDropFile()		string
-	GetCreateFile()		string
-	GetRSSFile()			string
+	GetTempImgDir() string
+	GetImgDir() string
+	GetHTTPDir() string
+	GetDropFile() string
+	GetCreateFile() string
+	GetRSSFile() string
 }
 
-
 type SysUtils struct {
-	config 		SysConfig
+	config SysConfig
 }
 
 func NewSysUtils(config SysConfig) *SysUtils {
@@ -39,12 +36,12 @@ func (u *SysUtils) GetRSSDefs() ([]string, error) {
 	return ReadLines(u.config.GetRSSFile())
 }
 
-func (u *SysUtils) SaveTempImage (url string, client *http.Client) (string, error) {
-	return SaveTempImage (url, client, u.config.GetTempImgDir())
+func (u *SysUtils) SaveTempImage(url string, client *http.Client) (string, error) {
+	return SaveTempImage(url, client, u.config.GetTempImgDir())
 }
 
-func (u *SysUtils) PersistTempImage (tid string, id int64) error {
-	return PersistTempImage (tid, id, u.config.GetTempImgDir(), u.config.GetImgDir())
+func (u *SysUtils) PersistTempImage(tid string, id int64) error {
+	return PersistTempImage(tid, id, u.config.GetTempImgDir(), u.config.GetImgDir())
 }
 
 func (u *SysUtils) DeleteImages() error {
@@ -68,7 +65,3 @@ func (u *SysUtils) DeleteImage(id int64, tid string) error {
 func (u *SysUtils) ExtractZipToHttpDir(file multipart.File, length int64) error {
 	return ExtractZipToDir(file, length, u.config.GetHTTPDir())
 }
-
-
-
-

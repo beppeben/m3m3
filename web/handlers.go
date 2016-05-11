@@ -1,15 +1,15 @@
 package web
 
 import (
-	"net/http"
-	"io"
-	"github.com/gorilla/context"
-	"fmt"
-	"time"
 	"compress/gzip"
-	"strings"
 	"encoding/base64"
+	"fmt"
 	log "github.com/Sirupsen/logrus"
+	"github.com/gorilla/context"
+	"io"
+	"net/http"
+	"strings"
+	"time"
 )
 
 func (handler WebserviceHandler) BasicAuth(next http.Handler) http.Handler {
@@ -42,8 +42,7 @@ func (handler WebserviceHandler) BasicAuth(next http.Handler) http.Handler {
 	return http.HandlerFunc(fn)
 }
 
-
-func (handler WebserviceHandler) ValidateAdmin(username, password string) bool {	
+func (handler WebserviceHandler) ValidateAdmin(username, password string) bool {
 	if username == "admin" && password == handler.config.GetAdminPass() {
 		return true
 	}
@@ -55,7 +54,7 @@ func (handler WebserviceHandler) RecoverHandler(next http.Handler) http.Handler 
 		defer func() {
 			if err := recover(); err != nil {
 				log.Warnf("%v", err)
-				http.Error(w, http.StatusText(500) + ": " + fmt.Sprintf("%v", err), 500)
+				http.Error(w, http.StatusText(500)+": "+fmt.Sprintf("%v", err), 500)
 			}
 		}()
 
@@ -65,12 +64,11 @@ func (handler WebserviceHandler) RecoverHandler(next http.Handler) http.Handler 
 }
 
 func (handler WebserviceHandler) NoCacheHandler(next http.Handler) http.Handler {
-  	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-      	w.Header().Add("Cache-Control", "no-cache, no-store, must-revalidate")
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Add("Cache-Control", "no-cache, no-store, must-revalidate")
 		next.ServeHTTP(w, r)
-  	})
+	})
 }
-
 
 func (handler WebserviceHandler) LoggingHandler(next http.Handler) http.Handler {
 	fn := func(w http.ResponseWriter, r *http.Request) {
@@ -84,7 +82,6 @@ func (handler WebserviceHandler) LoggingHandler(next http.Handler) http.Handler 
 	return http.HandlerFunc(fn)
 }
 
-
 func (handler WebserviceHandler) AuthHandler(next http.Handler) http.Handler {
 	fn := func(w http.ResponseWriter, r *http.Request) {
 		cookie, err := r.Cookie("token")
@@ -93,7 +90,7 @@ func (handler WebserviceHandler) AuthHandler(next http.Handler) http.Handler {
 			next.ServeHTTP(w, r)
 			return
 		}
-		token := cookie.Value		
+		token := cookie.Value
 		name, err := handler.repo.GetUserNameByToken(token)
 		if err != nil {
 			log.Infof("%v", err)
@@ -133,21 +130,20 @@ func (handler WebserviceHandler) GzipJsonHandler(next http.Handler) http.Handler
 	return http.HandlerFunc(fn)
 }
 
-
 /*
 func (handler WebserviceHandler) SetCookiesHandler(next http.Handler) http.Handler {
 	fn := func(w http.ResponseWriter, r *http.Request) {
 		next.ServeHTTP(w, r)
 		user := context.Get(r, "user")
-		
+
 		if user != nil {
 			log.Debugf("Setting cookies for %s", user)
 			username := user.(string)
 			token := utils.RandString(32)
 			expire := time.Now().AddDate(0,2,0)
-			cookie := http.Cookie{Name: "token", Value: token, Path: "/", Expires: expire}	
+			cookie := http.Cookie{Name: "token", Value: token, Path: "/", Expires: expire}
 			http.SetCookie(w, &cookie)
-			cookie = http.Cookie{Name: "name", Value: username, Path: "/", Expires: expire}	
+			cookie = http.Cookie{Name: "name", Value: username, Path: "/", Expires: expire}
 			http.SetCookie(w, &cookie)
 			err := handler.repo.InsertAccessToken(token, username, expire)
 			if err != nil {
@@ -155,7 +151,7 @@ func (handler WebserviceHandler) SetCookiesHandler(next http.Handler) http.Handl
 			}
 		} else {
 			log.Debugln("Cannot set cookies to null user name")
-		}	
+		}
 	}
 
 	return http.HandlerFunc(fn)

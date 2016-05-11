@@ -4,9 +4,8 @@ import (
 	"github.com/spf13/viper"
 )
 
-
 type AppConfig struct {
-	v 	*viper.Viper
+	v *viper.Viper
 }
 
 func NewAppConfig() *AppConfig {
@@ -14,18 +13,17 @@ func NewAppConfig() *AppConfig {
 	v.SetConfigName("config")
 	v.SetConfigType("toml")
 	v.AddConfigPath("./config/")
-	err := v.ReadInConfig() 
+	err := v.ReadInConfig()
 	if err != nil {
 		panic(err.Error())
 	}
-	
+
 	return &AppConfig{v}
 }
 
 func NewCustomAppConfig(v *viper.Viper) *AppConfig {
 	return &AppConfig{v}
 }
-
 
 func (val *AppConfig) GetServiceEmail() string {
 	return val.v.GetString("EMAIL")
@@ -102,5 +100,5 @@ func (val *AppConfig) GetServerUrl() string {
 		return host
 	} else {
 		return host + ":" + port
-	}	
+	}
 }

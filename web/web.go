@@ -1,23 +1,23 @@
 package web
 
 import (
-	"github.com/beppeben/m3m3/utils"
-	"github.com/beppeben/m3m3/core"
-	"github.com/julienschmidt/httprouter"
-	"net/http"
 	"fmt"
-	"time"
-	"strings"
-	"github.com/gorilla/context"
-	"github.com/justinas/alice"
-	"mime/multipart"
-	cache "github.com/patrickmn/go-cache"
 	log "github.com/Sirupsen/logrus"
+	"github.com/beppeben/m3m3/core"
+	"github.com/beppeben/m3m3/utils"
+	"github.com/gorilla/context"
+	"github.com/julienschmidt/httprouter"
+	"github.com/justinas/alice"
+	cache "github.com/patrickmn/go-cache"
+	"mime/multipart"
+	"net/http"
+	"strings"
+	"time"
 )
 
-type Repository interface { 
+type Repository interface {
 	InsertAccessToken(token string, name string, expire time.Time) error
-	GetUserNameByToken(token string) (string, error)	
+	GetUserNameByToken(token string) (string, error)
 	GetUserByEmail(email string) (*User, error)
 	GetUserByName(name string) (*User, error)
 	DeleteAccessToken(token string) error
@@ -27,10 +27,10 @@ type Repository interface {
 }
 
 type ServerConfig interface {
-	GetServerUrl()	string
-	GetHTTPDir()		string
-	GetAdminPass()	string
-	GetServerPort()	string
+	GetServerUrl() string
+	GetHTTPDir() string
+	GetAdminPass() string
+	GetServerPort() string
 }
 
 type EmailUtils interface {
@@ -41,35 +41,34 @@ type SysUtils interface {
 	ExtractZipToHttpDir(file multipart.File, length int64) error
 }
 
-
-type WebserviceHandler struct { 
-	itemInteractor	*core.ItemInteractor
-	repo 			Repository
-	frouter			*http.ServeMux
-	mrouter			*router
-	usercache		*cache.Cache
-	config			ServerConfig
-	eutils 			EmailUtils
-	sutils 			SysUtils
+type WebserviceHandler struct {
+	itemInteractor *core.ItemInteractor
+	repo           Repository
+	frouter        *http.ServeMux
+	mrouter        *router
+	usercache      *cache.Cache
+	config         ServerConfig
+	eutils         EmailUtils
+	sutils         SysUtils
 }
 
 type router struct {
 	*httprouter.Router
 }
 
-func NewWebHandler(it *core.ItemInteractor, repo Repository, c ServerConfig, 
-		e EmailUtils, s SysUtils) *WebserviceHandler {
+func NewWebHandler(it *core.ItemInteractor, repo Repository, c ServerConfig,
+	e EmailUtils, s SysUtils) *WebserviceHandler {
 	return &WebserviceHandler{itemInteractor: it, repo: repo, usercache: cache.New(24*time.Hour, time.Hour),
-			config: c, eutils: e, sutils: s}
+		config: c, eutils: e, sutils: s}
 }
 
-func (h WebserviceHandler) StartServer() {	
+func (h WebserviceHandler) StartServer() {
 	commonHandlers := alice.New(context.ClearHandler, h.LoggingHandler, h.RecoverHandler, h.NoCacheHandler)
 	authHandlers := commonHandlers.Append(h.AuthHandler)
 	h.mrouter = NewRouter()
 	h.frouter = http.NewServeMux()
 	h.frouter.Handle("/", http.FileServer(http.Dir(h.config.GetHTTPDir())))
-		
+
 	h.mrouter.Get("/item.html", authHandlers.ThenFunc(h.ItemHTML))
 	h.mrouter.Get("/services/items", commonHandlers.ThenFunc(h.GetItems))
 	h.mrouter.Get("/services/bestComments", commonHandlers.Append(h.GzipJsonHandler).ThenFunc(h.GetBestComments))
@@ -82,20 +81,19 @@ func (h WebserviceHandler) StartServer() {
 	h.mrouter.Post("/services/comment", authHandlers.ThenFunc(h.PostComment))
 	h.mrouter.Get("/services/deletecomment", authHandlers.ThenFunc(h.DeleteComment))
 	h.mrouter.Post("/services/deployFront", commonHandlers.Append(h.BasicAuth).ThenFunc(h.DeployFront))
-		
+
 	var err error
-	
+
 	r := http.NewServeMux()
 	r.HandleFunc("/", h.FrontHandler)
 	go func() {
-		log.Infof("Server launched on port %s", h.config.GetServerPort())	
-    		err = http.ListenAndServe(":" + h.config.GetServerPort(), r)		
+		log.Infof("Server launched on port %s", h.config.GetServerPort())
+		err = http.ListenAndServe(":"+h.config.GetServerPort(), r)
 		if err != nil {
 			panic(err.Error())
-		}		
+		}
 	}()
-	
-	
+
 }
 
 func (r *router) Get(path string, handler http.Handler) {
@@ -118,36 +116,34 @@ func wrapHandler(h http.Handler) httprouter.Handle {
 }
 
 func (handler WebserviceHandler) FrontHandler(w http.ResponseWriter, r *http.Request) {
-	
+
 	if strings.HasPrefix(r.URL.Path, "/item.html") {
-		handler.mrouter.ServeHTTP(w,r)
+		handler.mrouter.ServeHTTP(w, r)
 	} else if strings.HasPrefix(r.URL.Path, "/services/") {
-		ip := strings.Split(r.RemoteAddr,":")[0] 
+		ip := strings.Split(r.RemoteAddr, ":")[0]
 		_, found := handler.usercache.Get(ip)
-		if (!found) {
+		if !found {
 			handler.usercache.Set(ip, "", cache.DefaultExpiration)
-			log.Infof("New user: %s. Total daily users: %d", ip, handler.usercache.ItemCount())			
+			log.Infof("New user: %s. Total daily users: %d", ip, handler.usercache.ItemCount())
 		}
-		handler.mrouter.ServeHTTP(w,r)
+		handler.mrouter.ServeHTTP(w, r)
 	} else {
 		if strings.HasPrefix(r.URL.Path, "/images/") {
 			w.Header().Add("Cache-Control", fmt.Sprintf("max-age=%d, public, must-revalidate", 31556926))
-		}		
+		}
 		handler.frouter.ServeHTTP(w, r)
 	}
-	
+
 }
 
-
-
-func (handler WebserviceHandler) setCookies (username string, w http.ResponseWriter) {
+func (handler WebserviceHandler) setCookies(username string, w http.ResponseWriter) {
 	if username != "" {
 		log.Debugf("Setting cookies for %s", username)
 		token := utils.RandString(32)
-		expire := time.Now().AddDate(0,2,0)
-		cookie := http.Cookie{Name: "token", Value: token, Path: "/", Expires: expire}	
+		expire := time.Now().AddDate(0, 2, 0)
+		cookie := http.Cookie{Name: "token", Value: token, Path: "/", Expires: expire}
 		http.SetCookie(w, &cookie)
-		cookie = http.Cookie{Name: "name", Value: username, Path: "/", Expires: expire}	
+		cookie = http.Cookie{Name: "name", Value: username, Path: "/", Expires: expire}
 		http.SetCookie(w, &cookie)
 		err := handler.repo.InsertAccessToken(token, username, expire)
 		if err != nil {
@@ -155,6 +151,5 @@ func (handler WebserviceHandler) setCookies (username string, w http.ResponseWri
 		}
 	} else {
 		log.Debugln("Cannot set cookies to null user name")
-	}	
+	}
 }
-
